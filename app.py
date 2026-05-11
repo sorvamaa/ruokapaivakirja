@@ -1,6 +1,5 @@
 import os
 import json
-import base64
 import sqlite3
 from datetime import date, datetime
 from flask import Flask, request, jsonify, send_from_directory, g
@@ -46,13 +45,37 @@ def init_db():
                 created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS weights (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                weighed_at TEXT    NOT NULL,
+                weight_kg  REAL    NOT NULL,
+                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS goals (
+                id         INTEGER PRIMARY KEY CHECK (id = 1),
+                calories   REAL,
+                protein_g  REAL,
+                carbs_g    REAL,
+                fat_g      REAL,
+                fiber_g    REAL,
+                updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        # Insert default goals row if not exists
+        db.execute("""
+            INSERT OR IGNORE INTO goals (id, calories, protein_g, carbs_g, fat_g, fiber_g)
+            VALUES (1, 2000, 120, 220, 65, 30)
+        """)
         db.commit()
 
 # ---------------------------------------------------------------------------
 # AI food analysis
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """Olet ravitsemustieteilijä-AI, joka analysoi ruoka-annoksia kuvista.
+VISION_PROMPT = """Olet ravitsemustieteilijä-AI, joka analysoi ruoka-annoksia kuvista.
 Analysoi kuva ja palauta JSON-objekti seuraavilla kentillä:
 {
   "description": "Lyhyt kuvaus annoksesta suomeksi (esim. 'Broileria ja riisiä salaatilla')",
@@ -66,60 +89,79 @@ Analysoi kuva ja palauta JSON-objekti seuraavilla kentillä:
 }
 Palauta VAIN JSON, ei muuta tekstiä."""
 
+TEXT_PROMPT = """Olet ravitsemustieteilijä-AI, joka arvioi ravintoarvoja tekstikuvauksen perusteella.
+Arvioi ravintoarvot ja palauta JSON-objekti seuraavilla kentillä:
+{
+  "description": "Siisti kuvaus annoksesta suomeksi",
+  "foods": ["lista", "tunnistetuista", "ruoista"],
+  "calories": <kokonaiskalorimäärä kcal, numero>,
+  "protein_g": <proteiini grammoina, numero>,
+  "carbs_g": <hiilihydraatit grammoina, numero>,
+  "fat_g": <rasva grammoina, numero>,
+  "fiber_g": <kuitu grammoina, numero>,
+  "notes": "Mahdolliset huomiot tai epävarmuudet arviossa"
+}
+Palauta VAIN JSON, ei muuta tekstiä."""
+
+def parse_ai_json(raw: str) -> dict:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw.strip())
+
 def analyze_food_image(image_b64: str, media_type: str = "image/jpeg") -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_b64,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": "Analysoi tämä ruoka-annos ja palauta ravintoarvot JSON-muodossa."
-                    }
-                ],
-            }
-        ],
-        system=SYSTEM_PROMPT,
+        system=VISION_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                {"type": "text", "text": "Analysoi tämä ruoka-annos ja palauta ravintoarvot JSON-muodossa."}
+            ],
+        }],
     )
-    raw = message.content[0].text.strip()
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    return json.loads(raw)
+    return parse_ai_json(message.content[0].text)
+
+def analyze_food_text(description: str) -> dict:
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        system=TEXT_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": f"Arvioi ravintoarvot: {description}",
+        }],
+    )
+    return parse_ai_json(message.content[0].text)
 
 # ---------------------------------------------------------------------------
-# API routes
+# Meals API
 # ---------------------------------------------------------------------------
 
 @app.route("/api/meals", methods=["POST"])
 def add_meal():
-    """Add a new meal with an optional image."""
     data = request.get_json(force=True)
-    image_b64 = data.get("image_b64")
+    image_b64  = data.get("image_b64")
     media_type = data.get("media_type", "image/jpeg")
-    eaten_at = data.get("eaten_at", datetime.now().isoformat())
-
-    if not image_b64:
-        return jsonify({"error": "image_b64 required"}), 400
+    text_desc  = data.get("text_description")
+    eaten_at   = data.get("eaten_at", datetime.now().isoformat())
 
     if not ANTHROPIC_API_KEY:
         return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 500
+    if not image_b64 and not text_desc:
+        return jsonify({"error": "image_b64 or text_description required"}), 400
 
     try:
-        analysis = analyze_food_image(image_b64, media_type)
+        if image_b64:
+            analysis = analyze_food_image(image_b64, media_type)
+        else:
+            analysis = analyze_food_text(text_desc)
     except Exception as e:
         return jsonify({"error": f"AI analysis failed: {str(e)}"}), 500
 
@@ -128,33 +170,39 @@ def add_meal():
         """INSERT INTO meals
            (eaten_at, description, image_b64, calories, protein_g, carbs_g, fat_g, fiber_g, analysis)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            eaten_at,
-            analysis.get("description", ""),
-            image_b64,
-            analysis.get("calories"),
-            analysis.get("protein_g"),
-            analysis.get("carbs_g"),
-            analysis.get("fat_g"),
-            analysis.get("fiber_g"),
-            json.dumps(analysis, ensure_ascii=False),
-        ),
+        (eaten_at, analysis.get("description", ""), image_b64,
+         analysis.get("calories"), analysis.get("protein_g"),
+         analysis.get("carbs_g"), analysis.get("fat_g"), analysis.get("fiber_g"),
+         json.dumps(analysis, ensure_ascii=False)),
     )
     db.commit()
-
     return jsonify({"id": cur.lastrowid, "analysis": analysis}), 201
 
 
 @app.route("/api/meals", methods=["GET"])
 def list_meals():
-    """List meals, optionally filtered by date (YYYY-MM-DD)."""
     day = request.args.get("date", date.today().isoformat())
     db = get_db()
     rows = db.execute(
-        "SELECT * FROM meals WHERE date(eaten_at) = ? ORDER BY eaten_at DESC",
-        (day,),
+        "SELECT * FROM meals WHERE date(eaten_at) = ? ORDER BY eaten_at DESC", (day,)
     ).fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/meals/<int:meal_id>", methods=["PATCH"])
+def update_meal(meal_id):
+    """Update nutritional values or description of a meal."""
+    data = request.get_json(force=True)
+    allowed = ["description", "calories", "protein_g", "carbs_g", "fat_g", "fiber_g"]
+    fields = {k: data[k] for k in allowed if k in data}
+    if not fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    db = get_db()
+    db.execute(f"UPDATE meals SET {set_clause} WHERE id = ?", (*fields.values(), meal_id))
+    db.commit()
+    row = db.execute("SELECT * FROM meals WHERE id = ?", (meal_id,)).fetchone()
+    return jsonify(dict(row))
 
 
 @app.route("/api/meals/<int:meal_id>", methods=["DELETE"])
@@ -167,38 +215,86 @@ def delete_meal(meal_id):
 
 @app.route("/api/summary", methods=["GET"])
 def daily_summary():
-    """Return aggregated nutritional totals for a given date."""
     day = request.args.get("date", date.today().isoformat())
     db = get_db()
     row = db.execute(
-        """SELECT
-               COUNT(*)        AS meal_count,
-               ROUND(SUM(calories),1)  AS calories,
+        """SELECT COUNT(*) AS meal_count,
+               ROUND(SUM(calories),1) AS calories,
                ROUND(SUM(protein_g),1) AS protein_g,
-               ROUND(SUM(carbs_g),1)   AS carbs_g,
-               ROUND(SUM(fat_g),1)     AS fat_g,
-               ROUND(SUM(fiber_g),1)   AS fiber_g
-           FROM meals WHERE date(eaten_at) = ?""",
-        (day,),
+               ROUND(SUM(carbs_g),1) AS carbs_g,
+               ROUND(SUM(fat_g),1) AS fat_g,
+               ROUND(SUM(fiber_g),1) AS fiber_g
+           FROM meals WHERE date(eaten_at) = ?""", (day,)
     ).fetchone()
     return jsonify({"date": day, **dict(row)})
 
 
 @app.route("/api/history", methods=["GET"])
 def history():
-    """Return dates that have meals, with daily totals — last 30 days."""
     db = get_db()
     rows = db.execute(
-        """SELECT date(eaten_at) AS day,
-                  COUNT(*)              AS meal_count,
-                  ROUND(SUM(calories),0) AS calories
-           FROM meals
-           GROUP BY day
-           ORDER BY day DESC
-           LIMIT 30"""
+        """SELECT date(eaten_at) AS day, COUNT(*) AS meal_count,
+               ROUND(SUM(calories),0) AS calories
+           FROM meals GROUP BY day ORDER BY day DESC LIMIT 30"""
     ).fetchall()
     return jsonify([dict(r) for r in rows])
 
+# ---------------------------------------------------------------------------
+# Goals API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/goals", methods=["GET", "POST"])
+def goals_endpoint():
+    db = get_db()
+    if request.method == "POST":
+        data = request.get_json(force=True)
+        allowed = ["calories", "protein_g", "carbs_g", "fat_g", "fiber_g"]
+        fields = {k: data[k] for k in allowed if k in data}
+        db.execute(
+            """INSERT INTO goals (id, calories, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+               VALUES (1, ?, ?, ?, ?, ?, datetime('now'))
+               ON CONFLICT(id) DO UPDATE SET
+                   calories=excluded.calories, protein_g=excluded.protein_g,
+                   carbs_g=excluded.carbs_g, fat_g=excluded.fat_g,
+                   fiber_g=excluded.fiber_g, updated_at=excluded.updated_at""",
+            (fields.get("calories"), fields.get("protein_g"), fields.get("carbs_g"),
+             fields.get("fat_g"), fields.get("fiber_g"))
+        )
+        db.commit()
+    row = db.execute("SELECT * FROM goals WHERE id = 1").fetchone()
+    return jsonify(dict(row))
+
+# ---------------------------------------------------------------------------
+# Weight API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/weight", methods=["GET", "POST"])
+def weight_endpoint():
+    db = get_db()
+    if request.method == "POST":
+        data = request.get_json(force=True)
+        weight_kg  = data.get("weight_kg")
+        weighed_at = data.get("weighed_at", datetime.now().isoformat())
+        if weight_kg is None:
+            return jsonify({"error": "weight_kg required"}), 400
+        cur = db.execute(
+            "INSERT INTO weights (weighed_at, weight_kg) VALUES (?, ?)", (weighed_at, weight_kg)
+        )
+        db.commit()
+        return jsonify({"id": cur.lastrowid, "weight_kg": weight_kg, "weighed_at": weighed_at}), 201
+    days = int(request.args.get("days", 30))
+    rows = db.execute(
+        "SELECT id, date(weighed_at) AS day, weight_kg FROM weights ORDER BY weighed_at DESC LIMIT ?", (days,)
+    ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/weight/<int:entry_id>", methods=["DELETE"])
+def delete_weight(entry_id):
+    db = get_db()
+    db.execute("DELETE FROM weights WHERE id = ?", (entry_id,))
+    db.commit()
+    return jsonify({"deleted": entry_id})
 
 # ---------------------------------------------------------------------------
 # Serve frontend
@@ -210,7 +306,6 @@ def serve(path):
     if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     return send_from_directory(app.template_folder, "index.html")
-
 
 # ---------------------------------------------------------------------------
 

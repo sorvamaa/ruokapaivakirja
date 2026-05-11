@@ -10,205 +10,146 @@
   <link rel="manifest" href="/static/manifest.json">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --green: #16a34a;
-      --green-light: #dcfce7;
-      --green-dark: #15803d;
-      --orange: #ea580c;
-      --bg: #f9fafb;
-      --card: #ffffff;
-      --text: #111827;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --radius: 14px;
+      --green: #16a34a; --green-light: #dcfce7; --green-dark: #15803d;
+      --orange: #ea580c; --blue: #2563eb; --blue-light: #dbeafe;
+      --purple: #7c3aed; --purple-light: #ede9fe;
+      --bg: #f9fafb; --card: #ffffff; --text: #111827;
+      --muted: #6b7280; --border: #e5e7eb; --radius: 14px;
     }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; display: flex; flex-direction: column; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
+    /* Header */
+    header { background: var(--green); color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    header h1 { font-size: 1.1rem; font-weight: 700; }
+    .date-nav { display: flex; align-items: center; gap: 6px; }
+    .date-nav button { background: rgba(255,255,255,.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .date-nav span { font-size: .82rem; font-weight: 600; min-width: 52px; text-align: center; }
 
-    /* ── Header ── */
-    header {
-      background: var(--green);
-      color: #fff;
-      padding: 16px 20px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -.3px; }
-    header .date-nav { display: flex; align-items: center; gap: 8px; }
-    header .date-nav button {
-      background: rgba(255,255,255,.2);
-      border: none; color: #fff;
-      width: 30px; height: 30px; border-radius: 50%;
-      font-size: 1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    header .date-nav span { font-size: .85rem; font-weight: 600; }
+    /* Tabs */
+    nav.tabs { display: flex; background: var(--card); border-bottom: 1px solid var(--border); overflow-x: auto; }
+    nav.tabs button { flex: 1; min-width: 70px; padding: 11px 4px; border: none; background: none; font-size: .78rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+    nav.tabs button.active { color: var(--green); border-bottom-color: var(--green); }
 
-    /* ── Tabs ── */
-    nav.tabs {
-      display: flex;
-      background: var(--card);
-      border-bottom: 1px solid var(--border);
-    }
-    nav.tabs button {
-      flex: 1; padding: 12px 0; border: none; background: none;
-      font-size: .85rem; font-weight: 600; color: var(--muted);
-      cursor: pointer; border-bottom: 3px solid transparent;
-      transition: all .15s;
-    }
-    nav.tabs button.active {
-      color: var(--green);
-      border-bottom-color: var(--green);
-    }
+    main { flex: 1; padding: 14px; max-width: 560px; width: 100%; margin: 0 auto; }
 
-    /* ── Main ── */
-    main { flex: 1; padding: 16px; max-width: 560px; width: 100%; margin: 0 auto; }
-
-    /* ── Summary card ── */
-    .summary-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    }
-    .summary-card h2 { font-size: .8rem; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: .5px; }
-    .macro-row { display: flex; gap: 8px; }
-    .macro {
-      flex: 1; text-align: center;
-      background: var(--green-light);
-      border-radius: 10px; padding: 10px 6px;
-    }
-    .macro .value { font-size: 1.25rem; font-weight: 700; color: var(--green-dark); }
-    .macro .label { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+    /* Summary card */
+    .summary-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .summary-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; letter-spacing: .5px; }
+    .macro-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .macro { flex: 1; text-align: center; background: var(--green-light); border-radius: 10px; padding: 8px 4px; }
+    .macro .value { font-size: 1.1rem; font-weight: 700; color: var(--green-dark); }
+    .macro .label { font-size: .65rem; color: var(--muted); margin-top: 1px; }
     .macro.kcal .value { color: var(--orange); }
     .macro.kcal { background: #fff7ed; }
 
-    /* ── Meal list ── */
-    .meal-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 14px;
-      margin-bottom: 10px;
-      display: flex; gap: 12px; align-items: flex-start;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-      position: relative;
-    }
-    .meal-card img {
-      width: 72px; height: 72px;
-      object-fit: cover; border-radius: 10px; flex-shrink: 0;
-    }
-    .meal-card .no-img {
-      width: 72px; height: 72px; border-radius: 10px;
-      background: var(--green-light);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2rem; flex-shrink: 0;
-    }
+    /* Progress bars */
+    .progress-section { display: flex; flex-direction: column; gap: 5px; }
+    .progress-row { display: flex; align-items: center; gap: 8px; }
+    .progress-row .plabel { font-size: .7rem; color: var(--muted); width: 56px; flex-shrink: 0; }
+    .progress-bar { flex: 1; height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; border-radius: 4px; transition: width .4s; }
+    .progress-row .pval { font-size: .68rem; color: var(--muted); width: 42px; text-align: right; flex-shrink: 0; }
+    .fill.kcal { background: var(--orange); }
+    .fill.prot { background: var(--blue); }
+    .fill.carb { background: #f59e0b; }
+    .fill.fat  { background: #ec4899; }
+    .fill.fib  { background: var(--green); }
+
+    /* Meal card */
+    .meal-card { background: var(--card); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-start; box-shadow: 0 1px 4px rgba(0,0,0,.06); cursor: pointer; position: relative; }
+    .meal-card:active { opacity: .85; }
+    .meal-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+    .meal-no-img { width: 64px; height: 64px; border-radius: 10px; background: var(--green-light); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; }
     .meal-info { flex: 1; min-width: 0; }
-    .meal-info .time { font-size: .75rem; color: var(--muted); margin-bottom: 3px; }
-    .meal-info .desc { font-size: .9rem; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
-    .meal-info .macros { display: flex; gap: 6px; flex-wrap: wrap; }
-    .meal-info .macros span {
-      font-size: .72rem; background: var(--green-light);
-      color: var(--green-dark); border-radius: 6px; padding: 2px 7px;
-      font-weight: 600;
-    }
+    .meal-info .time { font-size: .72rem; color: var(--muted); margin-bottom: 2px; }
+    .meal-info .desc { font-size: .88rem; font-weight: 600; margin-bottom: 5px; line-height: 1.3; }
+    .meal-info .macros { display: flex; gap: 5px; flex-wrap: wrap; }
+    .meal-info .macros span { font-size: .68rem; background: var(--green-light); color: var(--green-dark); border-radius: 5px; padding: 2px 6px; font-weight: 600; }
     .meal-info .macros span.kcal-badge { background: #fff7ed; color: var(--orange); }
-    .delete-btn {
-      position: absolute; top: 10px; right: 10px;
-      background: none; border: none; cursor: pointer;
-      color: var(--muted); font-size: 1rem; padding: 4px;
-      border-radius: 50%; line-height: 1;
-    }
+    .delete-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: .9rem; padding: 4px; border-radius: 50%; line-height: 1; }
     .delete-btn:hover { color: #dc2626; background: #fee2e2; }
 
-    /* ── Add meal area ── */
-    .add-section { margin-top: 4px; }
-    .camera-btn {
-      width: 100%; padding: 16px;
-      background: var(--green); color: #fff;
-      border: none; border-radius: var(--radius);
-      font-size: 1rem; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      margin-bottom: 14px;
-      box-shadow: 0 2px 8px rgba(22,163,74,.35);
-      transition: background .15s;
-    }
-    .camera-btn:active { background: var(--green-dark); }
-    .camera-btn .icon { font-size: 1.4rem; }
-
+    /* Add meal area */
+    .add-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .add-row button { flex: 1; padding: 13px 8px; border: none; border-radius: var(--radius); font-size: .88rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+    .btn-camera { background: var(--green); color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,.3); }
+    .btn-manual { background: var(--blue-light); color: var(--blue); }
     #file-input { display: none; }
 
     /* Preview */
-    .preview-wrap {
-      display: none; flex-direction: column; gap: 12px; margin-bottom: 14px;
-    }
+    .preview-wrap { display: none; flex-direction: column; gap: 10px; margin-bottom: 12px; }
     .preview-wrap.visible { display: flex; }
-    .preview-wrap img {
-      width: 100%; max-height: 280px; object-fit: cover;
-      border-radius: var(--radius);
-    }
-    .confirm-btn {
-      padding: 14px; background: var(--orange); color: #fff;
-      border: none; border-radius: var(--radius);
-      font-size: 1rem; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .confirm-btn:disabled { opacity: .6; cursor: not-allowed; }
-    .cancel-btn {
-      padding: 12px; background: var(--border); color: var(--text);
-      border: none; border-radius: var(--radius);
-      font-size: .9rem; font-weight: 600; cursor: pointer;
-    }
+    .preview-wrap img { width: 100%; max-height: 260px; object-fit: cover; border-radius: var(--radius); }
+    .btn-confirm { padding: 13px; background: var(--orange); color: #fff; border: none; border-radius: var(--radius); font-size: .95rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-confirm:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-cancel { padding: 11px; background: var(--border); color: var(--text); border: none; border-radius: var(--radius); font-size: .88rem; font-weight: 600; cursor: pointer; }
 
-    /* spinner */
-    .spinner {
-      width: 20px; height: 20px;
-      border: 3px solid rgba(255,255,255,.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
-    }
+    /* Manual entry */
+    .manual-form { display: none; background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .manual-form.visible { display: block; }
+    .manual-form textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px; font-size: .9rem; font-family: inherit; resize: none; height: 80px; margin-bottom: 10px; }
+    .manual-form textarea:focus { outline: none; border-color: var(--green); }
+    .manual-actions { display: flex; gap: 8px; }
+    .manual-actions .btn-confirm { flex: 1; }
+    .manual-actions .btn-cancel { flex: 0 0 auto; padding: 11px 18px; }
+
+    /* Spinner */
+    .spinner { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* toast */
-    .toast {
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-      background: #111; color: #fff; padding: 10px 20px;
-      border-radius: 24px; font-size: .875rem; font-weight: 500;
-      opacity: 0; pointer-events: none; transition: opacity .2s;
-      white-space: nowrap; max-width: 90vw; text-align: center;
-      z-index: 999;
-    }
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 10px 20px; border-radius: 24px; font-size: .875rem; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; max-width: 90vw; text-align: center; z-index: 999; }
     .toast.show { opacity: 1; }
 
-    /* history tab */
-    .history-day {
-      background: var(--card); border-radius: var(--radius);
-      padding: 14px; margin-bottom: 10px;
-      display: flex; justify-content: space-between; align-items: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-      cursor: pointer;
-    }
-    .history-day .day-label { font-weight: 600; font-size: .9rem; }
-    .history-day .day-meta { font-size: .8rem; color: var(--muted); margin-top: 2px; }
-    .history-day .day-kcal { font-size: 1.1rem; font-weight: 700; color: var(--orange); }
+    /* Empty */
+    .empty { text-align: center; color: var(--muted); padding: 36px 16px; font-size: .88rem; }
+    .empty .em { font-size: 2.2rem; margin-bottom: 8px; }
 
-    .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: .9rem; }
-    .empty .em { font-size: 2.5rem; margin-bottom: 10px; }
+    /* Weight tab */
+    .weight-input-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .weight-input-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; letter-spacing: .5px; }
+    .weight-row { display: flex; gap: 8px; align-items: center; }
+    .weight-row input { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 1.1rem; font-weight: 700; text-align: center; }
+    .weight-row input:focus { outline: none; border-color: var(--green); }
+    .weight-row button { background: var(--green); color: #fff; border: none; border-radius: 10px; padding: 10px 18px; font-size: .9rem; font-weight: 700; cursor: pointer; }
+    .weight-list-item { background: var(--card); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+    .weight-list-item .wdate { font-size: .8rem; color: var(--muted); }
+    .weight-list-item .wval { font-size: 1.2rem; font-weight: 700; color: var(--blue); }
+    .weight-list-item .wdel { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; padding: 4px; }
+
+    /* Goals tab */
+    .goals-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .goals-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; letter-spacing: .5px; }
+    .goal-field { margin-bottom: 12px; }
+    .goal-field label { display: block; font-size: .82rem; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+    .goal-field input { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 1rem; }
+    .goal-field input:focus { outline: none; border-color: var(--green); }
+    .goals-card .save-btn { width: 100%; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: var(--radius); font-size: .95rem; font-weight: 700; cursor: pointer; margin-top: 4px; }
+
+    /* History tab */
+    .history-day { background: var(--card); border-radius: var(--radius); padding: 13px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,.06); cursor: pointer; }
+    .history-day .day-label { font-weight: 600; font-size: .88rem; }
+    .history-day .day-meta { font-size: .75rem; color: var(--muted); margin-top: 1px; }
+    .history-day .day-kcal { font-size: 1.05rem; font-weight: 700; color: var(--orange); }
+
+    /* === MODAL === */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500; align-items: flex-end; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-height: 92dvh; overflow-y: auto; padding: 20px 16px 32px; }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+    .modal img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px; margin-bottom: 14px; }
+    .modal .modal-desc { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+    .modal .modal-foods { font-size: .82rem; color: var(--muted); margin-bottom: 14px; }
+    .modal h3 { font-size: .75rem; text-transform: uppercase; color: var(--muted); letter-spacing: .5px; margin-bottom: 10px; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .edit-field label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 3px; }
+    .edit-field input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .95rem; }
+    .edit-field input:focus { outline: none; border-color: var(--green); }
+    .edit-field.full { grid-column: 1 / -1; }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions .save-btn { flex: 1; padding: 12px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-size: .9rem; font-weight: 700; cursor: pointer; }
+    .modal-actions .close-btn { padding: 12px 18px; background: var(--border); border: none; border-radius: 10px; font-size: .9rem; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -216,81 +157,134 @@
 <header>
   <h1>🥗 Ruokapäiväkirja</h1>
   <div class="date-nav">
-    <button id="prev-day" aria-label="Edellinen päivä">‹</button>
-    <span id="current-date-label"></span>
-    <button id="next-day" aria-label="Seuraava päivä">›</button>
+    <button id="prev-day">‹</button>
+    <span id="date-label"></span>
+    <button id="next-day">›</button>
   </div>
 </header>
 
 <nav class="tabs">
   <button class="active" data-tab="today">Tänään</button>
   <button data-tab="history">Historia</button>
+  <button data-tab="weight">Paino</button>
+  <button data-tab="goals">Tavoitteet</button>
 </nav>
 
 <main>
-  <!-- TODAY TAB -->
+  <!-- ── TODAY ── -->
   <div id="tab-today">
     <div class="summary-card">
       <h2>Päivän yhteenveto</h2>
       <div class="macro-row">
-        <div class="macro kcal">
-          <div class="value" id="s-kcal">–</div>
-          <div class="label">kcal</div>
-        </div>
-        <div class="macro">
-          <div class="value" id="s-prot">–</div>
-          <div class="label">proteiini g</div>
-        </div>
-        <div class="macro">
-          <div class="value" id="s-carb">–</div>
-          <div class="label">hiilihydr. g</div>
-        </div>
-        <div class="macro">
-          <div class="value" id="s-fat">–</div>
-          <div class="label">rasva g</div>
-        </div>
-        <div class="macro">
-          <div class="value" id="s-fib">–</div>
-          <div class="label">kuitu g</div>
-        </div>
+        <div class="macro kcal"><div class="value" id="s-kcal">–</div><div class="label">kcal</div></div>
+        <div class="macro"><div class="value" id="s-prot">–</div><div class="label">prot g</div></div>
+        <div class="macro"><div class="value" id="s-carb">–</div><div class="label">hiilih. g</div></div>
+        <div class="macro"><div class="value" id="s-fat">–</div><div class="label">rasva g</div></div>
+        <div class="macro"><div class="value" id="s-fib">–</div><div class="label">kuitu g</div></div>
       </div>
+      <div class="progress-section" id="progress-bars"></div>
     </div>
 
-    <div class="add-section">
-      <button class="camera-btn" id="open-camera">
-        <span class="icon">📷</span> Kuvaa ateria
-      </button>
-      <input type="file" id="file-input" accept="image/*" capture="environment">
+    <div class="add-row">
+      <button class="btn-camera" id="open-camera"><span>📷</span> Kuvaa</button>
+      <button class="btn-manual" id="open-manual"><span>✏️</span> Kirjaa tekstinä</button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment">
 
-      <div class="preview-wrap" id="preview-wrap">
-        <img id="preview-img" src="" alt="Esikatselu">
-        <button class="confirm-btn" id="confirm-btn">
-          <span id="confirm-text">Analysoi ateria</span>
-          <div class="spinner" id="spinner"></div>
+    <div class="preview-wrap" id="preview-wrap">
+      <img id="preview-img" src="" alt="">
+      <button class="btn-confirm" id="confirm-btn">
+        <span id="confirm-text">Analysoi ateria</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <button class="btn-cancel" id="cancel-btn">Peruuta</button>
+    </div>
+
+    <div class="manual-form" id="manual-form">
+      <textarea id="manual-text" placeholder="Esim: 'kaksi kananmunaa ja kaksi viipaletta ruisleipää voilla'"></textarea>
+      <div class="manual-actions">
+        <button class="btn-confirm" id="manual-confirm">
+          <span id="manual-text-btn">Analysoi</span>
+          <div class="spinner" id="manual-spinner"></div>
         </button>
-        <button class="cancel-btn" id="cancel-btn">Peruuta</button>
+        <button class="btn-cancel" id="manual-cancel">Peruuta</button>
       </div>
     </div>
 
     <div id="meals-list"></div>
   </div>
 
-  <!-- HISTORY TAB -->
+  <!-- ── HISTORY ── -->
   <div id="tab-history" style="display:none">
     <div id="history-list"></div>
   </div>
+
+  <!-- ── WEIGHT ── -->
+  <div id="tab-weight" style="display:none">
+    <div class="weight-input-card">
+      <h2>Lisää painomerkintä</h2>
+      <div class="weight-row">
+        <input type="number" id="weight-input" step="0.1" min="30" max="300" placeholder="kg">
+        <button id="weight-save">Tallenna</button>
+      </div>
+    </div>
+    <div id="weight-list"></div>
+  </div>
+
+  <!-- ── GOALS ── -->
+  <div id="tab-goals" style="display:none">
+    <div class="goals-card">
+      <h2>Päivittäiset tavoitteet</h2>
+      <div class="goal-field"><label>Kalorit (kcal)</label><input type="number" id="g-kcal" placeholder="2000"></div>
+      <div class="goal-field"><label>Proteiini (g)</label><input type="number" id="g-prot" placeholder="120"></div>
+      <div class="goal-field"><label>Hiilihydraatit (g)</label><input type="number" id="g-carb" placeholder="220"></div>
+      <div class="goal-field"><label>Rasva (g)</label><input type="number" id="g-fat" placeholder="65"></div>
+      <div class="goal-field"><label>Kuitu (g)</label><input type="number" id="g-fib" placeholder="30"></div>
+      <button class="save-btn" id="goals-save">Tallenna tavoitteet</button>
+    </div>
+  </div>
 </main>
+
+<!-- ── MEAL MODAL ── -->
+<div class="modal-overlay" id="meal-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <img id="modal-img" src="" alt="" style="display:none">
+    <div class="modal-desc" id="modal-desc"></div>
+    <div class="modal-foods" id="modal-foods"></div>
+    <h3>Muokkaa ravintoarvoja</h3>
+    <div class="edit-grid">
+      <div class="edit-field full"><label>Kuvaus</label><input type="text" id="edit-desc"></div>
+      <div class="edit-field"><label>Kalorit (kcal)</label><input type="number" id="edit-kcal"></div>
+      <div class="edit-field"><label>Proteiini (g)</label><input type="number" id="edit-prot"></div>
+      <div class="edit-field"><label>Hiilihydr. (g)</label><input type="number" id="edit-carb"></div>
+      <div class="edit-field"><label>Rasva (g)</label><input type="number" id="edit-fat"></div>
+      <div class="edit-field"><label>Kuitu (g)</label><input type="number" id="edit-fib"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="save-btn" id="modal-save">Tallenna</button>
+      <button class="close-btn" id="modal-close">Sulje</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── State ────────────────────────────────────────────────────────────────────
-let currentDate = new Date();
-currentDate.setHours(0,0,0,0);
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentDate = new Date(); currentDate.setHours(0,0,0,0);
 let pendingImageB64 = null;
 let pendingMediaType = null;
+let goals = {};
+let openMealId = null;
 
-// ── Utils ────────────────────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function localIso() {
+  return new Date().toLocaleString('sv-SE').replace(' ', 'T');
+}
 function fmtDate(d) {
   const today = new Date(); today.setHours(0,0,0,0);
   const diff = Math.round((d - today) / 86400000);
@@ -298,72 +292,59 @@ function fmtDate(d) {
   if (diff === -1) return 'Eilen';
   return d.toLocaleDateString('fi-FI', { day:'numeric', month:'short' });
 }
-function isoDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function fmtTime(s) {
+  return new Date(s).toLocaleTimeString('fi-FI', { hour:'2-digit', minute:'2-digit' });
 }
-function fmtTime(isoStr) {
-  return new Date(isoStr).toLocaleTimeString('fi-FI', { hour:'2-digit', minute:'2-digit' });
-}
-function toast(msg, dur = 3000) {
+function n(v, unit='') { return v != null ? v + unit : '–'; }
+function toast(msg, dur=3000) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), dur);
 }
-function n(val) { return val != null ? val : '–'; }
 
-// ── Date navigation ───────────────────────────────────────────────────────────
+// ── Date nav ──────────────────────────────────────────────────────────────────
 function updateDateLabel() {
-  document.getElementById('current-date-label').textContent = fmtDate(currentDate);
-  // disable next if today
+  document.getElementById('date-label').textContent = fmtDate(currentDate);
   const today = new Date(); today.setHours(0,0,0,0);
   document.getElementById('next-day').disabled = currentDate >= today;
 }
-document.getElementById('prev-day').addEventListener('click', () => {
-  currentDate = new Date(currentDate - 86400000);
-  updateDateLabel();
-  loadDay();
-});
-document.getElementById('next-day').addEventListener('click', () => {
+document.getElementById('prev-day').onclick = () => {
+  currentDate = new Date(+currentDate - 86400000);
+  updateDateLabel(); loadDay();
+};
+document.getElementById('next-day').onclick = () => {
   const today = new Date(); today.setHours(0,0,0,0);
-  if (currentDate < today) {
-    currentDate = new Date(+currentDate + 86400000);
-    updateDateLabel();
-    loadDay();
-  }
-});
+  if (currentDate < today) { currentDate = new Date(+currentDate + 86400000); updateDateLabel(); loadDay(); }
+};
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+const tabs = ['today','history','weight','goals'];
 document.querySelectorAll('nav.tabs button').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.onclick = () => {
     document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('tab-today').style.display = btn.dataset.tab === 'today' ? '' : 'none';
-    document.getElementById('tab-history').style.display = btn.dataset.tab === 'history' ? '' : 'none';
+    tabs.forEach(t => document.getElementById('tab-'+t).style.display = t===btn.dataset.tab ? '' : 'none');
     if (btn.dataset.tab === 'history') loadHistory();
-  });
+    if (btn.dataset.tab === 'weight') loadWeight();
+    if (btn.dataset.tab === 'goals') loadGoals();
+  };
 });
 
-// ── Camera / file input ───────────────────────────────────────────────────────
-document.getElementById('open-camera').addEventListener('click', () => {
-  document.getElementById('file-input').click();
-});
-
+// ── Camera ────────────────────────────────────────────────────────────────────
+document.getElementById('open-camera').onclick = () => document.getElementById('file-input').click();
 document.getElementById('file-input').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const file = e.target.files[0]; if (!file) return;
   pendingMediaType = 'image/jpeg';
-
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      // Skaalataan max 1200px leveäksi/korkeaksi
       const MAX = 1200;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
-        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-        else        { w = Math.round(w * MAX / h); h = MAX; }
+        if (w > h) { h = Math.round(h*MAX/w); w = MAX; }
+        else { w = Math.round(w*MAX/h); h = MAX; }
       }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
@@ -372,7 +353,7 @@ document.getElementById('file-input').addEventListener('change', e => {
       pendingImageB64 = compressed.split(',')[1];
       document.getElementById('preview-img').src = compressed;
       document.getElementById('preview-wrap').classList.add('visible');
-      document.getElementById('open-camera').style.display = 'none';
+      document.getElementById('open-camera').closest('.add-row').style.display = 'none';
     };
     img.src = ev.target.result;
   };
@@ -380,75 +361,92 @@ document.getElementById('file-input').addEventListener('change', e => {
   e.target.value = '';
 });
 
-document.getElementById('cancel-btn').addEventListener('click', cancelPreview);
 function cancelPreview() {
   pendingImageB64 = null;
   document.getElementById('preview-wrap').classList.remove('visible');
-  document.getElementById('open-camera').style.display = '';
+  document.getElementById('open-camera').closest('.add-row').style.display = '';
 }
+document.getElementById('cancel-btn').onclick = cancelPreview;
 
-document.getElementById('confirm-btn').addEventListener('click', async () => {
+document.getElementById('confirm-btn').onclick = async () => {
   if (!pendingImageB64) return;
-  const btn = document.getElementById('confirm-btn');
-  const spinner = document.getElementById('spinner');
-  const text = document.getElementById('confirm-text');
-  btn.disabled = true;
-  spinner.style.display = 'block';
-  text.textContent = 'Analysoidaan…';
-
+  setLoading('confirm-btn', 'confirm-text', 'spinner', true, 'Analysoidaan…');
   try {
     const resp = await fetch('/api/meals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image_b64: pendingImageB64,
-        media_type: pendingMediaType,
-        eaten_at: new Date().toLocaleString('sv-SE').replace(' ', 'T'),
-      }),
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ image_b64: pendingImageB64, media_type: pendingMediaType, eaten_at: localIso() }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Virhe');
     toast('✅ Ateria lisätty!');
-    cancelPreview();
-    loadDay();
-  } catch (err) {
-    toast('❌ ' + err.message, 4000);
-  } finally {
-    btn.disabled = false;
-    spinner.style.display = 'none';
-    text.textContent = 'Analysoi ateria';
-  }
-});
+    cancelPreview(); loadDay();
+  } catch(err) { toast('❌ ' + err.message, 4000); }
+  finally { setLoading('confirm-btn', 'confirm-text', 'spinner', false, 'Analysoi ateria'); }
+};
 
-// ── Load today's meals + summary ─────────────────────────────────────────────
+// ── Manual entry ──────────────────────────────────────────────────────────────
+document.getElementById('open-manual').onclick = () => {
+  document.getElementById('manual-form').classList.add('visible');
+  document.getElementById('open-camera').closest('.add-row').style.display = 'none';
+  document.getElementById('manual-text').focus();
+};
+document.getElementById('manual-cancel').onclick = () => {
+  document.getElementById('manual-form').classList.remove('visible');
+  document.getElementById('open-camera').closest('.add-row').style.display = '';
+  document.getElementById('manual-text').value = '';
+};
+document.getElementById('manual-confirm').onclick = async () => {
+  const txt = document.getElementById('manual-text').value.trim();
+  if (!txt) return;
+  setLoading('manual-confirm', 'manual-text-btn', 'manual-spinner', true, 'Analysoidaan…');
+  try {
+    const resp = await fetch('/api/meals', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ text_description: txt, eaten_at: localIso() }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Virhe');
+    toast('✅ Ateria lisätty!');
+    document.getElementById('manual-cancel').click();
+    loadDay();
+  } catch(err) { toast('❌ ' + err.message, 4000); }
+  finally { setLoading('manual-confirm', 'manual-text-btn', 'manual-spinner', false, 'Analysoi'); }
+};
+
+function setLoading(btnId, textId, spinnerId, loading, label) {
+  document.getElementById(btnId).disabled = loading;
+  document.getElementById(textId).textContent = label;
+  document.getElementById(spinnerId).style.display = loading ? 'block' : 'none';
+}
+
+// ── Load day ──────────────────────────────────────────────────────────────────
 async function loadDay() {
   const day = isoDate(currentDate);
   const [mealsResp, summaryResp] = await Promise.all([
-    fetch(`/api/meals?date=${day}`),
-    fetch(`/api/summary?date=${day}`),
+    fetch(`/api/meals?date=${day}`), fetch(`/api/summary?date=${day}`)
   ]);
   const meals = await mealsResp.json();
   const summary = await summaryResp.json();
 
-  // summary
-  document.getElementById('s-kcal').textContent = n(summary.calories);
-  document.getElementById('s-prot').textContent = n(summary.protein_g);
-  document.getElementById('s-carb').textContent = n(summary.carbs_g);
-  document.getElementById('s-fat').textContent  = n(summary.fat_g);
-  document.getElementById('s-fib').textContent  = n(summary.fiber_g);
+  document.getElementById('s-kcal').textContent = summary.calories ?? '–';
+  document.getElementById('s-prot').textContent = summary.protein_g ?? '–';
+  document.getElementById('s-carb').textContent = summary.carbs_g ?? '–';
+  document.getElementById('s-fat').textContent  = summary.fat_g ?? '–';
+  document.getElementById('s-fib').textContent  = summary.fiber_g ?? '–';
 
-  // meals
+  renderProgressBars(summary);
+
   const list = document.getElementById('meals-list');
   if (!meals.length) {
-    list.innerHTML = `<div class="empty"><div class="em">🍽️</div>Ei aterioita tälle päivälle.<br>Kuvaa ensimmäinen ateriasi!</div>`;
+    list.innerHTML = `<div class="empty"><div class="em">🍽️</div>Ei aterioita tälle päivälle.</div>`;
     return;
   }
   list.innerHTML = meals.map(m => {
     const imgHtml = m.image_b64
-      ? `<img src="data:image/jpeg;base64,${m.image_b64}" alt="ateria">`
-      : `<div class="no-img">🍽️</div>`;
+      ? `<img class="meal-thumb" src="data:image/jpeg;base64,${m.image_b64}" alt="">`
+      : `<div class="meal-no-img">🍽️</div>`;
     return `
-      <div class="meal-card">
+      <div class="meal-card" onclick="openMealModal(${m.id})">
         ${imgHtml}
         <div class="meal-info">
           <div class="time">${fmtTime(m.eaten_at)}</div>
@@ -456,13 +454,32 @@ async function loadDay() {
           <div class="macros">
             ${m.calories != null ? `<span class="kcal-badge">${m.calories} kcal</span>` : ''}
             ${m.protein_g != null ? `<span>P ${m.protein_g}g</span>` : ''}
-            ${m.carbs_g  != null ? `<span>H ${m.carbs_g}g</span>`  : ''}
-            ${m.fat_g    != null ? `<span>R ${m.fat_g}g</span>`    : ''}
-            ${m.fiber_g  != null ? `<span>K ${m.fiber_g}g</span>`  : ''}
+            ${m.carbs_g  != null ? `<span>H ${m.carbs_g}g</span>` : ''}
+            ${m.fat_g    != null ? `<span>R ${m.fat_g}g</span>` : ''}
+            ${m.fiber_g  != null ? `<span>K ${m.fiber_g}g</span>` : ''}
           </div>
         </div>
-        <button class="delete-btn" onclick="deleteMeal(${m.id})" title="Poista">✕</button>
+        <button class="delete-btn" onclick="event.stopPropagation();deleteMeal(${m.id})" title="Poista">✕</button>
       </div>`;
+  }).join('');
+}
+
+function renderProgressBars(summary) {
+  if (!goals.calories) { document.getElementById('progress-bars').innerHTML = ''; return; }
+  const bars = [
+    { label:'Kalorit', val: summary.calories, goal: goals.calories, cls:'kcal', unit:'kcal' },
+    { label:'Proteiini', val: summary.protein_g, goal: goals.protein_g, cls:'prot', unit:'g' },
+    { label:'Hiilihydr.', val: summary.carbs_g, goal: goals.carbs_g, cls:'carb', unit:'g' },
+    { label:'Rasva', val: summary.fat_g, goal: goals.fat_g, cls:'fat', unit:'g' },
+    { label:'Kuitu', val: summary.fiber_g, goal: goals.fiber_g, cls:'fib', unit:'g' },
+  ];
+  document.getElementById('progress-bars').innerHTML = bars.map(b => {
+    const pct = b.goal ? Math.min(100, Math.round(((b.val||0)/b.goal)*100)) : 0;
+    return `<div class="progress-row">
+      <span class="plabel">${b.label}</span>
+      <div class="progress-bar"><div class="fill ${b.cls}" style="width:${pct}%"></div></div>
+      <span class="pval">${b.val ?? 0}/${b.goal}${b.unit}</span>
+    </div>`;
   }).join('');
 }
 
@@ -472,19 +489,63 @@ async function deleteMeal(id) {
   loadDay();
 }
 
-// ── History tab ───────────────────────────────────────────────────────────────
+// ── Meal modal ────────────────────────────────────────────────────────────────
+async function openMealModal(id) {
+  openMealId = id;
+  const resp = await fetch(`/api/meals?date=${isoDate(currentDate)}`);
+  const meals = await resp.json();
+  const m = meals.find(x => x.id === id);
+  if (!m) return;
+
+  const imgEl = document.getElementById('modal-img');
+  if (m.image_b64) { imgEl.src = `data:image/jpeg;base64,${m.image_b64}`; imgEl.style.display = ''; }
+  else imgEl.style.display = 'none';
+
+  document.getElementById('modal-desc').textContent = m.description;
+  let foods = '';
+  try { const a = JSON.parse(m.analysis||'{}'); foods = (a.foods||[]).join(', '); } catch(e){}
+  document.getElementById('modal-foods').textContent = foods ? `Tunnistettu: ${foods}` : '';
+
+  document.getElementById('edit-desc').value = m.description || '';
+  document.getElementById('edit-kcal').value = m.calories ?? '';
+  document.getElementById('edit-prot').value = m.protein_g ?? '';
+  document.getElementById('edit-carb').value = m.carbs_g ?? '';
+  document.getElementById('edit-fat').value  = m.fat_g ?? '';
+  document.getElementById('edit-fib').value  = m.fiber_g ?? '';
+
+  document.getElementById('meal-modal').classList.add('open');
+}
+
+document.getElementById('modal-close').onclick = () => document.getElementById('meal-modal').classList.remove('open');
+document.getElementById('meal-modal').onclick = e => { if (e.target === document.getElementById('meal-modal')) document.getElementById('meal-modal').classList.remove('open'); };
+
+document.getElementById('modal-save').onclick = async () => {
+  if (!openMealId) return;
+  const body = {
+    description: document.getElementById('edit-desc').value,
+    calories:  parseFloat(document.getElementById('edit-kcal').value) || null,
+    protein_g: parseFloat(document.getElementById('edit-prot').value) || null,
+    carbs_g:   parseFloat(document.getElementById('edit-carb').value) || null,
+    fat_g:     parseFloat(document.getElementById('edit-fat').value)  || null,
+    fiber_g:   parseFloat(document.getElementById('edit-fib').value)  || null,
+  };
+  const resp = await fetch(`/api/meals/${openMealId}`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (resp.ok) { toast('✅ Tallennettu!'); document.getElementById('meal-modal').classList.remove('open'); loadDay(); }
+  else toast('❌ Tallennus epäonnistui');
+};
+
+// ── History ───────────────────────────────────────────────────────────────────
 async function loadHistory() {
   const resp = await fetch('/api/history');
   const days = await resp.json();
   const list = document.getElementById('history-list');
-  if (!days.length) {
-    list.innerHTML = `<div class="empty"><div class="em">📅</div>Ei historiatietoja vielä.</div>`;
-    return;
-  }
+  if (!days.length) { list.innerHTML = `<div class="empty"><div class="em">📅</div>Ei historiatietoja vielä.</div>`; return; }
   list.innerHTML = days.map(d => `
     <div class="history-day" onclick="jumpToDay('${d.day}')">
       <div>
-        <div class="day-label">${new Date(d.day + 'T12:00').toLocaleDateString('fi-FI', { weekday:'long', day:'numeric', month:'long' })}</div>
+        <div class="day-label">${new Date(d.day+'T12:00').toLocaleDateString('fi-FI',{weekday:'long',day:'numeric',month:'long'})}</div>
         <div class="day-meta">${d.meal_count} ateriaa</div>
       </div>
       <div class="day-kcal">${d.calories ?? '–'} kcal</div>
@@ -494,18 +555,74 @@ async function loadHistory() {
 function jumpToDay(isoStr) {
   currentDate = new Date(isoStr + 'T00:00');
   updateDateLabel();
-  // switch to today tab
-  document.querySelectorAll('nav.tabs button').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === 'today');
-  });
-  document.getElementById('tab-today').style.display = '';
-  document.getElementById('tab-history').style.display = 'none';
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab==='today'));
+  tabs.forEach(t => document.getElementById('tab-'+t).style.display = t==='today' ? '' : 'none');
   loadDay();
 }
 
+// ── Weight ────────────────────────────────────────────────────────────────────
+async function loadWeight() {
+  const resp = await fetch('/api/weight?days=30');
+  const entries = await resp.json();
+  const list = document.getElementById('weight-list');
+  if (!entries.length) { list.innerHTML = `<div class="empty"><div class="em">⚖️</div>Ei painomerkintöjä vielä.</div>`; return; }
+  list.innerHTML = entries.map(e => `
+    <div class="weight-list-item">
+      <div>
+        <div class="wdate">${new Date(e.day+'T12:00').toLocaleDateString('fi-FI',{weekday:'short',day:'numeric',month:'short'})}</div>
+      </div>
+      <div class="wval">${e.weight_kg} kg</div>
+      <button class="wdel" onclick="deleteWeight(${e.id})">✕</button>
+    </div>`).join('');
+}
+
+document.getElementById('weight-save').onclick = async () => {
+  const val = parseFloat(document.getElementById('weight-input').value);
+  if (!val || val < 20 || val > 400) { toast('Syötä kelvollinen paino'); return; }
+  const resp = await fetch('/api/weight', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ weight_kg: val, weighed_at: localIso() })
+  });
+  if (resp.ok) { toast('✅ Paino tallennettu!'); document.getElementById('weight-input').value = ''; loadWeight(); }
+};
+
+async function deleteWeight(id) {
+  if (!confirm('Poistetaanko merkintä?')) return;
+  await fetch(`/api/weight/${id}`, { method: 'DELETE' });
+  loadWeight();
+}
+
+// ── Goals ─────────────────────────────────────────────────────────────────────
+async function loadGoals() {
+  const resp = await fetch('/api/goals');
+  goals = await resp.json();
+  document.getElementById('g-kcal').value = goals.calories ?? '';
+  document.getElementById('g-prot').value = goals.protein_g ?? '';
+  document.getElementById('g-carb').value = goals.carbs_g ?? '';
+  document.getElementById('g-fat').value  = goals.fat_g ?? '';
+  document.getElementById('g-fib').value  = goals.fiber_g ?? '';
+}
+
+document.getElementById('goals-save').onclick = async () => {
+  const body = {
+    calories:  parseFloat(document.getElementById('g-kcal').value) || null,
+    protein_g: parseFloat(document.getElementById('g-prot').value) || null,
+    carbs_g:   parseFloat(document.getElementById('g-carb').value) || null,
+    fat_g:     parseFloat(document.getElementById('g-fat').value)  || null,
+    fiber_g:   parseFloat(document.getElementById('g-fib').value)  || null,
+  };
+  const resp = await fetch('/api/goals', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if (resp.ok) { goals = await resp.json(); toast('✅ Tavoitteet tallennettu!'); renderProgressBars({}); }
+};
+
 // ── Init ──────────────────────────────────────────────────────────────────────
-updateDateLabel();
-loadDay();
+(async () => {
+  await loadGoals();
+  updateDateLabel();
+  loadDay();
+})();
 </script>
 </body>
 </html>
