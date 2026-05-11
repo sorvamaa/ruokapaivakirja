@@ -69,7 +69,7 @@ Palauta VAIN JSON, ei muuta tekstiä."""
 def analyze_food_image(image_b64: str, media_type: str = "image/jpeg") -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1024,
         messages=[
             {
