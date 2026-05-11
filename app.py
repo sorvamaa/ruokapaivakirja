@@ -75,32 +75,33 @@ def init_db():
 # AI food analysis
 # ---------------------------------------------------------------------------
 
-VISION_PROMPT = """Olet ravitsemustieteilijä-AI, joka analysoi ruoka-annoksia kuvista.
-Analysoi kuva ja palauta JSON-objekti seuraavilla kentillä:
+ITEMS_SCHEMA = """
 {
-  "description": "Lyhyt kuvaus annoksesta suomeksi (esim. 'Broileria ja riisiä salaatilla')",
-  "foods": ["lista", "tunnistetuista", "ruoista"],
-  "calories": <kokonaiskalorimäärä kcal, numero>,
-  "protein_g": <proteiini grammoina, numero>,
-  "carbs_g": <hiilihydraatit grammoina, numero>,
-  "fat_g": <rasva grammoina, numero>,
-  "fiber_g": <kuitu grammoina, numero>,
-  "notes": "Mahdolliset huomiot tai epävarmuudet arviossa"
-}
+  "description": "Lyhyt kuvaus annoksesta suomeksi",
+  "items": [
+    {"name": "Ruoka-aineen nimi suomeksi", "weight_g": <paino grammoina, numero>}
+  ],
+  "calories": <kokonaiskalorit kcal, numero>,
+  "protein_g": <proteiini g, numero>,
+  "carbs_g": <hiilihydraatit g, numero>,
+  "fat_g": <rasva g, numero>,
+  "fiber_g": <kuitu g, numero>,
+  "notes": "Mahdolliset huomiot tai epävarmuudet"
+}"""
+
+VISION_PROMPT = f"""Olet ravitsemustieteilijä-AI, joka analysoi ruoka-annoksia kuvista.
+Tunnista kaikki ruoka-aineet kuvasta ja arvioi niiden painot grammoina.
+Palauta JSON seuraavassa muodossa:{ITEMS_SCHEMA}
 Palauta VAIN JSON, ei muuta tekstiä."""
 
-TEXT_PROMPT = """Olet ravitsemustieteilijä-AI, joka arvioi ravintoarvoja tekstikuvauksen perusteella.
-Arvioi ravintoarvot ja palauta JSON-objekti seuraavilla kentillä:
-{
-  "description": "Siisti kuvaus annoksesta suomeksi",
-  "foods": ["lista", "tunnistetuista", "ruoista"],
-  "calories": <kokonaiskalorimäärä kcal, numero>,
-  "protein_g": <proteiini grammoina, numero>,
-  "carbs_g": <hiilihydraatit grammoina, numero>,
-  "fat_g": <rasva grammoina, numero>,
-  "fiber_g": <kuitu grammoina, numero>,
-  "notes": "Mahdolliset huomiot tai epävarmuudet arviossa"
-}
+TEXT_PROMPT = f"""Olet ravitsemustieteilijä-AI, joka arvioi ravintoarvoja tekstikuvauksen perusteella.
+Tunnista kaikki mainitut ruoka-aineet ja arvioi niiden painot grammoina.
+Palauta JSON seuraavassa muodossa:{ITEMS_SCHEMA}
+Palauta VAIN JSON, ei muuta tekstiä."""
+
+RECALC_PROMPT = f"""Olet ravitsemustieteilijä-AI. Sinulle annetaan lista ruoka-aineista ja niiden painot grammoina.
+Laske yhteenlasketut ravintoarvot ja palauta JSON seuraavassa muodossa:{ITEMS_SCHEMA}
+Säilytä annettu items-lista sellaisenaan, laske vain ravintoarvosummat.
 Palauta VAIN JSON, ei muuta tekstiä."""
 
 def parse_ai_json(raw: str) -> dict:
@@ -126,6 +127,21 @@ def analyze_food_image(image_b64: str, media_type: str = "image/jpeg") -> dict:
         }],
     )
     return parse_ai_json(message.content[0].text)
+
+def recalculate_from_items(items: list) -> dict:
+    """Re-calculate nutrition totals from an edited list of {name, weight_g} items."""
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    items_text = "\n".join(f"- {it['name']}: {it['weight_g']} g" for it in items)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        system=RECALC_PROMPT,
+        messages=[{"role": "user", "content": f"Ruoka-aineet:\n{items_text}"}],
+    )
+    result = parse_ai_json(message.content[0].text)
+    # Always keep the user's items list, not Claude's re-interpretation
+    result["items"] = items
+    return result
 
 def analyze_food_text(description: str) -> dict:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -187,6 +203,34 @@ def list_meals():
         "SELECT * FROM meals WHERE date(eaten_at) = ? ORDER BY eaten_at DESC", (day,)
     ).fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/meals/<int:meal_id>/recalculate", methods=["POST"])
+def recalculate_meal(meal_id):
+    """Recalculate nutrition from an edited food items list."""
+    data = request.get_json(force=True)
+    items = data.get("items", [])
+    if not items:
+        return jsonify({"error": "items list required"}), 400
+    if not ANTHROPIC_API_KEY:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 500
+    try:
+        analysis = recalculate_from_items(items)
+    except Exception as e:
+        return jsonify({"error": f"Recalculation failed: {str(e)}"}), 500
+
+    db = get_db()
+    db.execute(
+        """UPDATE meals SET description=?, calories=?, protein_g=?, carbs_g=?,
+           fat_g=?, fiber_g=?, analysis=? WHERE id=?""",
+        (analysis.get("description", ""), analysis.get("calories"),
+         analysis.get("protein_g"), analysis.get("carbs_g"),
+         analysis.get("fat_g"), analysis.get("fiber_g"),
+         json.dumps(analysis, ensure_ascii=False), meal_id)
+    )
+    db.commit()
+    row = db.execute("SELECT * FROM meals WHERE id=?", (meal_id,)).fetchone()
+    return jsonify({"meal": dict(row), "analysis": analysis})
 
 
 @app.route("/api/meals/<int:meal_id>", methods=["PATCH"])

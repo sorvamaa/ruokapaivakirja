@@ -138,15 +138,34 @@
     .modal-overlay.open { display: flex; }
     .modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-height: 92dvh; overflow-y: auto; padding: 20px 16px 32px; }
     .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
-    .modal img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 12px; margin-bottom: 14px; }
-    .modal .modal-desc { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
-    .modal .modal-foods { font-size: .82rem; color: var(--muted); margin-bottom: 14px; }
-    .modal h3 { font-size: .75rem; text-transform: uppercase; color: var(--muted); letter-spacing: .5px; margin-bottom: 10px; }
-    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-    .edit-field label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 3px; }
-    .edit-field input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .95rem; }
-    .edit-field input:focus { outline: none; border-color: var(--green); }
-    .edit-field.full { grid-column: 1 / -1; }
+    .modal-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 14px; display: none; }
+    .modal h3 { font-size: .72rem; text-transform: uppercase; color: var(--muted); letter-spacing: .5px; margin-bottom: 8px; margin-top: 14px; }
+    /* Description input */
+    .modal-desc-input { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font-size: .95rem; font-weight: 600; font-family: inherit; margin-bottom: 4px; }
+    .modal-desc-input:focus { outline: none; border-color: var(--green); }
+    /* Items list */
+    .items-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .item-row { display: flex; gap: 6px; align-items: center; }
+    .item-row .item-name { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .88rem; font-family: inherit; }
+    .item-row .item-name:focus { outline: none; border-color: var(--green); }
+    .item-row .item-weight { width: 72px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 8px; font-size: .88rem; text-align: right; }
+    .item-row .item-weight:focus { outline: none; border-color: var(--green); }
+    .item-row .item-unit { font-size: .75rem; color: var(--muted); flex-shrink: 0; }
+    .item-row .item-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 4px 6px; border-radius: 6px; flex-shrink: 0; }
+    .item-row .item-del:hover { color: #dc2626; background: #fee2e2; }
+    .add-item-btn { width: 100%; padding: 9px; border: 1.5px dashed var(--border); border-radius: 10px; background: none; color: var(--muted); font-size: .85rem; cursor: pointer; margin-bottom: 4px; }
+    .add-item-btn:hover { border-color: var(--green); color: var(--green); }
+    /* Recalculate button */
+    .recalc-btn { width: 100%; padding: 12px; background: var(--blue); color: #fff; border: none; border-radius: 10px; font-size: .9rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+    .recalc-btn:disabled { opacity: .6; cursor: not-allowed; }
+    /* Nutrition result */
+    .nutrition-result { background: var(--bg); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: none; }
+    .nutrition-result.visible { display: block; }
+    .nutr-row { display: flex; justify-content: space-between; font-size: .85rem; padding: 3px 0; border-bottom: 1px solid var(--border); }
+    .nutr-row:last-child { border-bottom: none; }
+    .nutr-row .nutr-label { color: var(--muted); }
+    .nutr-row .nutr-val { font-weight: 700; }
+    /* Actions */
     .modal-actions { display: flex; gap: 8px; }
     .modal-actions .save-btn { flex: 1; padding: 12px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-size: .9rem; font-weight: 700; cursor: pointer; }
     .modal-actions .close-btn { padding: 12px 18px; background: var(--border); border: none; border-radius: 10px; font-size: .9rem; font-weight: 600; cursor: pointer; }
@@ -249,17 +268,22 @@
 <div class="modal-overlay" id="meal-modal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <img id="modal-img" src="" alt="" style="display:none">
-    <div class="modal-desc" id="modal-desc"></div>
-    <div class="modal-foods" id="modal-foods"></div>
-    <h3>Muokkaa ravintoarvoja</h3>
-    <div class="edit-grid">
-      <div class="edit-field full"><label>Kuvaus</label><input type="text" id="edit-desc"></div>
-      <div class="edit-field"><label>Kalorit (kcal)</label><input type="number" id="edit-kcal"></div>
-      <div class="edit-field"><label>Proteiini (g)</label><input type="number" id="edit-prot"></div>
-      <div class="edit-field"><label>Hiilihydr. (g)</label><input type="number" id="edit-carb"></div>
-      <div class="edit-field"><label>Rasva (g)</label><input type="number" id="edit-fat"></div>
-      <div class="edit-field"><label>Kuitu (g)</label><input type="number" id="edit-fib"></div>
+    <img class="modal-img" id="modal-img" src="" alt="">
+    <h3>Kuvaus</h3>
+    <input class="modal-desc-input" type="text" id="edit-desc" placeholder="Aterian kuvaus">
+    <h3>Ruoka-aineet</h3>
+    <div class="items-list" id="items-list"></div>
+    <button class="add-item-btn" id="add-item-btn">+ Lisää ruoka-aine</button>
+    <button class="recalc-btn" id="recalc-btn">
+      <span id="recalc-text">🔄 Laske ravintoarvot uudelleen</span>
+      <div class="spinner" id="recalc-spinner"></div>
+    </button>
+    <div class="nutrition-result" id="nutrition-result">
+      <div class="nutr-row"><span class="nutr-label">Kalorit</span><span class="nutr-val" id="nr-kcal">–</span></div>
+      <div class="nutr-row"><span class="nutr-label">Proteiini</span><span class="nutr-val" id="nr-prot">–</span></div>
+      <div class="nutr-row"><span class="nutr-label">Hiilihydraatit</span><span class="nutr-val" id="nr-carb">–</span></div>
+      <div class="nutr-row"><span class="nutr-label">Rasva</span><span class="nutr-val" id="nr-fat">–</span></div>
+      <div class="nutr-row"><span class="nutr-label">Kuitu</span><span class="nutr-val" id="nr-fib">–</span></div>
     </div>
     <div class="modal-actions">
       <button class="save-btn" id="modal-save">Tallenna</button>
@@ -490,44 +514,123 @@ async function deleteMeal(id) {
 }
 
 // ── Meal modal ────────────────────────────────────────────────────────────────
+let pendingNutrition = null; // nutrition from last recalculation
+
+function renderItemsList(items) {
+  const list = document.getElementById('items-list');
+  list.innerHTML = items.map((it, i) => `
+    <div class="item-row" data-index="${i}">
+      <input class="item-name" type="text" value="${it.name}" placeholder="Ruoka-aine" oninput="updateItem(${i},'name',this.value)">
+      <input class="item-weight" type="number" value="${it.weight_g}" min="0" step="1" oninput="updateItem(${i},'weight_g',parseFloat(this.value)||0)">
+      <span class="item-unit">g</span>
+      <button class="item-del" onclick="removeItem(${i})" title="Poista">✕</button>
+    </div>`).join('');
+}
+
+let modalItems = [];
+
+function updateItem(i, field, val) { modalItems[i][field] = val; }
+function removeItem(i) { modalItems.splice(i, 1); renderItemsList(modalItems); pendingNutrition = null; document.getElementById('nutrition-result').classList.remove('visible'); }
+
+document.getElementById('add-item-btn').onclick = () => {
+  modalItems.push({ name: '', weight_g: 100 });
+  renderItemsList(modalItems);
+  // focus new item's name field
+  const rows = document.querySelectorAll('#items-list .item-row');
+  if (rows.length) rows[rows.length-1].querySelector('.item-name').focus();
+};
+
 async function openMealModal(id) {
   openMealId = id;
+  pendingNutrition = null;
+  document.getElementById('nutrition-result').classList.remove('visible');
+
   const resp = await fetch(`/api/meals?date=${isoDate(currentDate)}`);
   const meals = await resp.json();
   const m = meals.find(x => x.id === id);
   if (!m) return;
 
   const imgEl = document.getElementById('modal-img');
-  if (m.image_b64) { imgEl.src = `data:image/jpeg;base64,${m.image_b64}`; imgEl.style.display = ''; }
+  if (m.image_b64) { imgEl.src = `data:image/jpeg;base64,${m.image_b64}`; imgEl.style.display = 'block'; }
   else imgEl.style.display = 'none';
 
-  document.getElementById('modal-desc').textContent = m.description;
-  let foods = '';
-  try { const a = JSON.parse(m.analysis||'{}'); foods = (a.foods||[]).join(', '); } catch(e){}
-  document.getElementById('modal-foods').textContent = foods ? `Tunnistettu: ${foods}` : '';
-
   document.getElementById('edit-desc').value = m.description || '';
-  document.getElementById('edit-kcal').value = m.calories ?? '';
-  document.getElementById('edit-prot').value = m.protein_g ?? '';
-  document.getElementById('edit-carb').value = m.carbs_g ?? '';
-  document.getElementById('edit-fat').value  = m.fat_g ?? '';
-  document.getElementById('edit-fib').value  = m.fiber_g ?? '';
+
+  // Load items from analysis JSON
+  try {
+    const a = JSON.parse(m.analysis || '{}');
+    modalItems = (a.items || []).map(it => ({ name: it.name || '', weight_g: it.weight_g || 0 }));
+  } catch(e) { modalItems = []; }
+
+  // If no items yet (old meal), create a placeholder from description
+  if (!modalItems.length && m.description) {
+    modalItems = [{ name: m.description, weight_g: 200 }];
+  }
+
+  renderItemsList(modalItems);
+
+  // Show current nutrition
+  pendingNutrition = { calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g, fiber_g: m.fiber_g };
+  showNutrition(pendingNutrition);
 
   document.getElementById('meal-modal').classList.add('open');
 }
+
+function showNutrition(n) {
+  if (!n) return;
+  document.getElementById('nr-kcal').textContent = n.calories != null ? n.calories + ' kcal' : '–';
+  document.getElementById('nr-prot').textContent = n.protein_g != null ? n.protein_g + ' g' : '–';
+  document.getElementById('nr-carb').textContent = n.carbs_g   != null ? n.carbs_g   + ' g' : '–';
+  document.getElementById('nr-fat').textContent  = n.fat_g     != null ? n.fat_g     + ' g' : '–';
+  document.getElementById('nr-fib').textContent  = n.fiber_g   != null ? n.fiber_g   + ' g' : '–';
+  document.getElementById('nutrition-result').classList.add('visible');
+}
+
+document.getElementById('recalc-btn').onclick = async () => {
+  if (!openMealId) return;
+  const items = modalItems.filter(it => it.name.trim());
+  if (!items.length) { toast('Lisää ensin ruoka-aineita'); return; }
+
+  const btn = document.getElementById('recalc-btn');
+  btn.disabled = true;
+  document.getElementById('recalc-text').textContent = 'Lasketaan…';
+  document.getElementById('recalc-spinner').style.display = 'block';
+
+  try {
+    const resp = await fetch(`/api/meals/${openMealId}/recalculate`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ items })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Virhe');
+    pendingNutrition = data.analysis;
+    // Update description if Claude returned one
+    if (data.analysis.description) document.getElementById('edit-desc').value = data.analysis.description;
+    showNutrition(data.analysis);
+    toast('✅ Ravintoarvot laskettu!');
+    loadDay();
+  } catch(err) { toast('❌ ' + err.message, 4000); }
+  finally {
+    btn.disabled = false;
+    document.getElementById('recalc-text').textContent = '🔄 Laske ravintoarvot uudelleen';
+    document.getElementById('recalc-spinner').style.display = 'none';
+  }
+};
 
 document.getElementById('modal-close').onclick = () => document.getElementById('meal-modal').classList.remove('open');
 document.getElementById('meal-modal').onclick = e => { if (e.target === document.getElementById('meal-modal')) document.getElementById('meal-modal').classList.remove('open'); };
 
 document.getElementById('modal-save').onclick = async () => {
   if (!openMealId) return;
+  // Save description + current nutrition (from last recalc or original)
+  const n = pendingNutrition || {};
   const body = {
     description: document.getElementById('edit-desc').value,
-    calories:  parseFloat(document.getElementById('edit-kcal').value) || null,
-    protein_g: parseFloat(document.getElementById('edit-prot').value) || null,
-    carbs_g:   parseFloat(document.getElementById('edit-carb').value) || null,
-    fat_g:     parseFloat(document.getElementById('edit-fat').value)  || null,
-    fiber_g:   parseFloat(document.getElementById('edit-fib').value)  || null,
+    calories:  n.calories  ?? null,
+    protein_g: n.protein_g ?? null,
+    carbs_g:   n.carbs_g   ?? null,
+    fat_g:     n.fat_g     ?? null,
+    fiber_g:   n.fiber_g   ?? null,
   };
   const resp = await fetch(`/api/meals/${openMealId}`, {
     method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
