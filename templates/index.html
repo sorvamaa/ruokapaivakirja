@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Ruokapäiväkirja</title>
   <link rel="manifest" href="/static/manifest.json">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -133,6 +134,38 @@
     .history-day .day-meta { font-size: .75rem; color: var(--muted); margin-top: 1px; }
     .history-day .day-kcal { font-size: 1.05rem; font-weight: 700; color: var(--orange); }
 
+    /* === BARCODE SCANNER === */
+    .scanner-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 600; flex-direction: column; }
+    .scanner-overlay.open { display: flex; }
+    .scanner-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .scanner-header span { color: #fff; font-weight: 700; font-size: 1rem; }
+    .scanner-header button { background: rgba(255,255,255,.15); border: none; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: .85rem; cursor: pointer; }
+    #scanner-view { flex: 1; position: relative; overflow: hidden; }
+    #scanner-view video { width: 100%; height: 100%; object-fit: cover; }
+    .scanner-aim { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .scanner-aim-box { width: 260px; height: 120px; border: 3px solid var(--green); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); }
+    .scanner-hint { color: rgba(255,255,255,.8); text-align: center; padding: 14px; font-size: .85rem; }
+
+    /* === PRODUCT CARD === */
+    .product-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 650; align-items: flex-end; }
+    .product-overlay.open { display: flex; }
+    .product-card { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; padding: 20px 16px 32px; }
+    .product-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+    .product-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 2px; }
+    .product-brand { font-size: .82rem; color: var(--muted); margin-bottom: 14px; }
+    .product-nutr-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: .85rem; }
+    .product-nutr-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .product-nutr-table td { padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .product-nutr-table td:last-child { text-align: right; font-weight: 600; }
+    .portion-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; background: var(--green-light); border-radius: 12px; padding: 12px 14px; }
+    .portion-row label { font-size: .85rem; font-weight: 600; color: var(--green-dark); flex: 1; }
+    .portion-row input { width: 80px; border: 1.5px solid var(--green); border-radius: 8px; padding: 7px 10px; font-size: 1rem; font-weight: 700; text-align: center; }
+    .portion-row input:focus { outline: none; }
+    .portion-row span { font-size: .85rem; color: var(--green-dark); font-weight: 600; }
+    .product-actions { display: flex; gap: 8px; }
+    .product-actions .add-btn { flex: 1; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: 12px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+    .product-actions .cancel-btn { padding: 13px 18px; background: var(--border); border: none; border-radius: 12px; font-size: .9rem; font-weight: 600; cursor: pointer; }
+
     /* === MODAL === */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500; align-items: flex-end; }
     .modal-overlay.open { display: flex; }
@@ -206,7 +239,8 @@
 
     <div class="add-row">
       <button class="btn-camera" id="open-camera"><span>📷</span> Kuvaa</button>
-      <button class="btn-manual" id="open-manual"><span>✏️</span> Kirjaa tekstinä</button>
+      <button class="btn-manual" id="open-barcode" style="background:#ede9fe;color:#7c3aed"><span>〡〡〡</span> Viivakoodi</button>
+      <button class="btn-manual" id="open-manual"><span>✏️</span> Teksti</button>
     </div>
     <input type="file" id="file-input" accept="image/*" capture="environment">
 
@@ -263,6 +297,44 @@
     </div>
   </div>
 </main>
+
+<!-- ── BARCODE SCANNER ── -->
+<div class="scanner-overlay" id="scanner-overlay">
+  <div class="scanner-header">
+    <span>📦 Skannaa viivakoodi</span>
+    <button id="scanner-close">Peruuta</button>
+  </div>
+  <div id="scanner-view">
+    <div class="scanner-aim"><div class="scanner-aim-box"></div></div>
+  </div>
+  <div class="scanner-hint">Aseta viivakoodi kehyksen sisään</div>
+</div>
+
+<!-- ── PRODUCT CARD ── -->
+<div class="product-overlay" id="product-overlay">
+  <div class="product-card">
+    <div class="product-handle"></div>
+    <div class="product-name" id="product-name"></div>
+    <div class="product-brand" id="product-brand"></div>
+    <table class="product-nutr-table">
+      <tr><th>Ravintoaine</th><th>/ 100 g</th><th id="product-per-portion-header">/ annos</th></tr>
+      <tr><td>Energia</td><td id="pt-kcal100">–</td><td id="pt-kcal">–</td></tr>
+      <tr><td>Proteiini</td><td id="pt-prot100">–</td><td id="pt-prot">–</td></tr>
+      <tr><td>Hiilihydraatit</td><td id="pt-carb100">–</td><td id="pt-carb">–</td></tr>
+      <tr><td>Rasva</td><td id="pt-fat100">–</td><td id="pt-fat">–</td></tr>
+      <tr><td>Kuitu</td><td id="pt-fib100">–</td><td id="pt-fib">–</td></tr>
+    </table>
+    <div class="portion-row">
+      <label>Syöty määrä</label>
+      <input type="number" id="portion-input" min="1" max="2000" step="5">
+      <span>g</span>
+    </div>
+    <div class="product-actions">
+      <button class="add-btn" id="product-add">Lisää aterialle</button>
+      <button class="cancel-btn" id="product-cancel">Peruuta</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── MEAL MODAL ── -->
 <div class="modal-overlay" id="meal-modal">
@@ -637,6 +709,143 @@ document.getElementById('modal-save').onclick = async () => {
   });
   if (resp.ok) { toast('✅ Tallennettu!'); document.getElementById('meal-modal').classList.remove('open'); loadDay(); }
   else toast('❌ Tallennus epäonnistui');
+};
+
+// ── Barcode scanner ───────────────────────────────────────────────────────────
+let html5Scanner = null;
+let currentProduct = null;
+
+document.getElementById('open-barcode').onclick = () => startScanner();
+document.getElementById('scanner-close').onclick = () => stopScanner();
+
+function startScanner() {
+  document.getElementById('scanner-overlay').classList.add('open');
+  document.getElementById('open-camera').closest('.add-row').style.display = 'none';
+
+  // Clean up previous instance
+  if (html5Scanner) { html5Scanner.clear().catch(()=>{}); html5Scanner = null; }
+
+  html5Scanner = new Html5Qrcode("scanner-view");
+  html5Scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 260, height: 120 }, aspectRatio: 1.7 },
+    (decodedText) => onBarcodeFound(decodedText),
+    () => {}   // ignore frame errors
+  ).catch(err => { toast('Kamera ei käynnisty: ' + err, 4000); stopScanner(); });
+}
+
+function stopScanner() {
+  if (html5Scanner) {
+    html5Scanner.stop().then(() => { html5Scanner.clear(); html5Scanner = null; }).catch(()=>{});
+  }
+  document.getElementById('scanner-overlay').classList.remove('open');
+  document.getElementById('open-camera').closest('.add-row').style.display = '';
+}
+
+async function onBarcodeFound(barcode) {
+  stopScanner();
+  toast('🔍 Haetaan tuotetietoja…');
+  try {
+    const resp = await fetch(`/api/barcode/${barcode}`);
+    const data = await resp.json();
+    if (!resp.ok || !data.found) {
+      toast('❌ ' + (data.error || 'Tuotetta ei löydy'), 4000);
+      return;
+    }
+    showProductCard(data);
+  } catch(e) { toast('❌ Virhe: ' + e.message, 4000); }
+}
+
+function calcPortionNutrition(per100, grams) {
+  const f = grams / 100;
+  return {
+    calories:  per100.calories  != null ? Math.round(per100.calories  * f) : null,
+    protein_g: per100.protein_g != null ? Math.round(per100.protein_g * f * 10)/10 : null,
+    carbs_g:   per100.carbs_g   != null ? Math.round(per100.carbs_g   * f * 10)/10 : null,
+    fat_g:     per100.fat_g     != null ? Math.round(per100.fat_g     * f * 10)/10 : null,
+    fiber_g:   per100.fiber_g   != null ? Math.round(per100.fiber_g   * f * 10)/10 : null,
+  };
+}
+
+function updatePortionColumns(per100, grams) {
+  const p = calcPortionNutrition(per100, grams);
+  document.getElementById('product-per-portion-header').textContent = `/ ${grams} g`;
+  document.getElementById('pt-kcal').textContent = p.calories  != null ? p.calories  + ' kcal' : '–';
+  document.getElementById('pt-prot').textContent = p.protein_g != null ? p.protein_g + ' g'    : '–';
+  document.getElementById('pt-carb').textContent = p.carbs_g   != null ? p.carbs_g   + ' g'    : '–';
+  document.getElementById('pt-fat').textContent  = p.fat_g     != null ? p.fat_g     + ' g'    : '–';
+  document.getElementById('pt-fib').textContent  = p.fiber_g   != null ? p.fiber_g   + ' g'    : '–';
+}
+
+function showProductCard(product) {
+  currentProduct = product;
+  const p = product.per_100g;
+
+  document.getElementById('product-name').textContent = product.name;
+  document.getElementById('product-brand').textContent = product.brand || '';
+
+  document.getElementById('pt-kcal100').textContent = p.calories  != null ? p.calories  + ' kcal' : '–';
+  document.getElementById('pt-prot100').textContent = p.protein_g != null ? p.protein_g + ' g'    : '–';
+  document.getElementById('pt-carb100').textContent = p.carbs_g   != null ? p.carbs_g   + ' g'    : '–';
+  document.getElementById('pt-fat100').textContent  = p.fat_g     != null ? p.fat_g     + ' g'    : '–';
+  document.getElementById('pt-fib100').textContent  = p.fiber_g   != null ? p.fiber_g   + ' g'    : '–';
+
+  const portionInput = document.getElementById('portion-input');
+  portionInput.value = product.serving_g;
+  updatePortionColumns(p, product.serving_g);
+
+  portionInput.oninput = () => {
+    const g = parseFloat(portionInput.value) || 0;
+    if (g > 0) updatePortionColumns(p, g);
+  };
+
+  document.getElementById('product-overlay').classList.add('open');
+}
+
+document.getElementById('product-cancel').onclick = () => {
+  document.getElementById('product-overlay').classList.remove('open');
+  currentProduct = null;
+};
+document.getElementById('product-overlay').onclick = e => {
+  if (e.target === document.getElementById('product-overlay')) {
+    document.getElementById('product-overlay').classList.remove('open');
+    currentProduct = null;
+  }
+};
+
+document.getElementById('product-add').onclick = async () => {
+  if (!currentProduct) return;
+  const grams = parseFloat(document.getElementById('portion-input').value) || 0;
+  if (!grams) { toast('Syötä grammamäärä'); return; }
+
+  const p = calcPortionNutrition(currentProduct.per_100g, grams);
+  const description = `${currentProduct.name}${currentProduct.brand ? ' ('+currentProduct.brand+')' : ''} ${grams} g`;
+
+  const analysis = {
+    description,
+    items: [{ name: currentProduct.name, weight_g: grams }],
+    ...p,
+  };
+
+  const resp = await fetch('/api/meals', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      text_description: description,
+      eaten_at: localIso(),
+      // Pass pre-computed values to avoid AI call — use a special flag
+      _precomputed: analysis,
+    }),
+  });
+
+  if (resp.ok) {
+    toast('✅ ' + currentProduct.name + ' lisätty!');
+    document.getElementById('product-overlay').classList.remove('open');
+    currentProduct = null;
+    loadDay();
+  } else {
+    const d = await resp.json();
+    toast('❌ ' + (d.error || 'Virhe'), 4000);
+  }
 };
 
 // ── History ───────────────────────────────────────────────────────────────────

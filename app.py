@@ -168,18 +168,22 @@ def add_meal():
     text_desc  = data.get("text_description")
     eaten_at   = data.get("eaten_at", datetime.now().isoformat())
 
-    if not ANTHROPIC_API_KEY:
-        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 500
-    if not image_b64 and not text_desc:
-        return jsonify({"error": "image_b64 or text_description required"}), 400
-
-    try:
-        if image_b64:
-            analysis = analyze_food_image(image_b64, media_type)
-        else:
-            analysis = analyze_food_text(text_desc)
-    except Exception as e:
-        return jsonify({"error": f"AI analysis failed: {str(e)}"}), 500
+    # Barcode path: pre-computed values, no AI needed
+    precomputed = data.get("_precomputed")
+    if precomputed:
+        analysis = precomputed
+    else:
+        if not ANTHROPIC_API_KEY:
+            return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 500
+        if not image_b64 and not text_desc:
+            return jsonify({"error": "image_b64 or text_description required"}), 400
+        try:
+            if image_b64:
+                analysis = analyze_food_image(image_b64, media_type)
+            else:
+                analysis = analyze_food_text(text_desc)
+        except Exception as e:
+            return jsonify({"error": f"AI analysis failed: {str(e)}"}), 500
 
     db = get_db()
     cur = db.execute(
@@ -339,6 +343,62 @@ def delete_weight(entry_id):
     db.execute("DELETE FROM weights WHERE id = ?", (entry_id,))
     db.commit()
     return jsonify({"deleted": entry_id})
+
+# ---------------------------------------------------------------------------
+# Barcode API  (Open Food Facts)
+# ---------------------------------------------------------------------------
+
+import requests as http_requests
+
+OFF_URL = "https://world.openfoodfacts.org/api/v0/product/{}.json"
+OFF_HEADERS = {"User-Agent": "Ruokapaivakirja/1.0 (marko.sorvamaa@qtec.fi)"}
+
+def _parse_serving(s: str) -> float | None:
+    """Extract grams from serving size string like '200g' or '1 portion (250g)'."""
+    import re
+    m = re.search(r'(\d+[\.,]?\d*)\s*g', str(s), re.IGNORECASE)
+    return float(m.group(1).replace(',', '.')) if m else None
+
+@app.route("/api/barcode/<barcode>")
+def lookup_barcode(barcode):
+    try:
+        r = http_requests.get(OFF_URL.format(barcode), headers=OFF_HEADERS, timeout=8)
+        data = r.json()
+    except Exception as e:
+        return jsonify({"error": f"Tietokantayhteys epäonnistui: {e}"}), 502
+
+    if data.get("status") != 1:
+        return jsonify({"found": False, "error": "Tuotetta ei löydy tietokannasta"}), 404
+
+    p = data["product"]
+    n = p.get("nutriments", {})
+
+    def per100(key):
+        for suffix in ("_100g", "_serving"):
+            v = n.get(key + suffix)
+            if v is not None:
+                return round(float(v), 1)
+        return None
+
+    # Prefer Finnish name, fall back to generic
+    name = (p.get("product_name_fi") or p.get("product_name") or "Tuntematon tuote").strip()
+    brand = (p.get("brands") or "").strip()
+    serving_g = _parse_serving(p.get("serving_size", "")) or 100
+
+    return jsonify({
+        "found": True,
+        "barcode": barcode,
+        "name": name,
+        "brand": brand,
+        "serving_g": serving_g,
+        "per_100g": {
+            "calories":  per100("energy-kcal"),
+            "protein_g": per100("proteins"),
+            "carbs_g":   per100("carbohydrates"),
+            "fat_g":     per100("fat"),
+            "fiber_g":   per100("fiber"),
+        },
+    })
 
 # ---------------------------------------------------------------------------
 # Serve frontend
