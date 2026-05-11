@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Ruokapäiväkirja</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #16a34a;
+      --green-light: #dcfce7;
+      --green-dark: #15803d;
+      --orange: #ea580c;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--green);
+      color: #fff;
+      padding: 16px 20px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -.3px; }
+    header .date-nav { display: flex; align-items: center; gap: 8px; }
+    header .date-nav button {
+      background: rgba(255,255,255,.2);
+      border: none; color: #fff;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    header .date-nav span { font-size: .85rem; font-weight: 600; }
+
+    /* ── Tabs ── */
+    nav.tabs {
+      display: flex;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    nav.tabs button {
+      flex: 1; padding: 12px 0; border: none; background: none;
+      font-size: .85rem; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav.tabs button.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+
+    /* ── Main ── */
+    main { flex: 1; padding: 16px; max-width: 560px; width: 100%; margin: 0 auto; }
+
+    /* ── Summary card ── */
+    .summary-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .summary-card h2 { font-size: .8rem; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: .5px; }
+    .macro-row { display: flex; gap: 8px; }
+    .macro {
+      flex: 1; text-align: center;
+      background: var(--green-light);
+      border-radius: 10px; padding: 10px 6px;
+    }
+    .macro .value { font-size: 1.25rem; font-weight: 700; color: var(--green-dark); }
+    .macro .label { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+    .macro.kcal .value { color: var(--orange); }
+    .macro.kcal { background: #fff7ed; }
+
+    /* ── Meal list ── */
+    .meal-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex; gap: 12px; align-items: flex-start;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      position: relative;
+    }
+    .meal-card img {
+      width: 72px; height: 72px;
+      object-fit: cover; border-radius: 10px; flex-shrink: 0;
+    }
+    .meal-card .no-img {
+      width: 72px; height: 72px; border-radius: 10px;
+      background: var(--green-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; flex-shrink: 0;
+    }
+    .meal-info { flex: 1; min-width: 0; }
+    .meal-info .time { font-size: .75rem; color: var(--muted); margin-bottom: 3px; }
+    .meal-info .desc { font-size: .9rem; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+    .meal-info .macros { display: flex; gap: 6px; flex-wrap: wrap; }
+    .meal-info .macros span {
+      font-size: .72rem; background: var(--green-light);
+      color: var(--green-dark); border-radius: 6px; padding: 2px 7px;
+      font-weight: 600;
+    }
+    .meal-info .macros span.kcal-badge { background: #fff7ed; color: var(--orange); }
+    .delete-btn {
+      position: absolute; top: 10px; right: 10px;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1rem; padding: 4px;
+      border-radius: 50%; line-height: 1;
+    }
+    .delete-btn:hover { color: #dc2626; background: #fee2e2; }
+
+    /* ── Add meal area ── */
+    .add-section { margin-top: 4px; }
+    .camera-btn {
+      width: 100%; padding: 16px;
+      background: var(--green); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(22,163,74,.35);
+      transition: background .15s;
+    }
+    .camera-btn:active { background: var(--green-dark); }
+    .camera-btn .icon { font-size: 1.4rem; }
+
+    #file-input { display: none; }
+
+    /* Preview */
+    .preview-wrap {
+      display: none; flex-direction: column; gap: 12px; margin-bottom: 14px;
+    }
+    .preview-wrap.visible { display: flex; }
+    .preview-wrap img {
+      width: 100%; max-height: 280px; object-fit: cover;
+      border-radius: var(--radius);
+    }
+    .confirm-btn {
+      padding: 14px; background: var(--orange); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .confirm-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .cancel-btn {
+      padding: 12px; background: var(--border); color: var(--text);
+      border: none; border-radius: var(--radius);
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+    }
+
+    /* spinner */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* toast */
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #111; color: #fff; padding: 10px 20px;
+      border-radius: 24px; font-size: .875rem; font-weight: 500;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+      white-space: nowrap; max-width: 90vw; text-align: center;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; }
+
+    /* history tab */
+    .history-day {
+      background: var(--card); border-radius: var(--radius);
+      padding: 14px; margin-bottom: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      cursor: pointer;
+    }
+    .history-day .day-label { font-weight: 600; font-size: .9rem; }
+    .history-day .day-meta { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+    .history-day .day-kcal { font-size: 1.1rem; font-weight: 700; color: var(--orange); }
+
+    .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: .9rem; }
+    .empty .em { font-size: 2.5rem; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🥗 Ruokapäiväkirja</h1>
+  <div class="date-nav">
+    <button id="prev-day" aria-label="Edellinen päivä">‹</button>
+    <span id="current-date-label"></span>
+    <button id="next-day" aria-label="Seuraava päivä">›</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="active" data-tab="today">Tänään</button>
+  <button data-tab="history">Historia</button>
+</nav>
+
+<main>
+  <!-- TODAY TAB -->
+  <div id="tab-today">
+    <div class="summary-card">
+      <h2>Päivän yhteenveto</h2>
+      <div class="macro-row">
+        <div class="macro kcal">
+          <div class="value" id="s-kcal">–</div>
+          <div class="label">kcal</div>
+        </div>
+        <div class="macro">
+          <div class="value" id="s-prot">–</div>
+          <div class="label">proteiini g</div>
+        </div>
+        <div class="macro">
+          <div class="value" id="s-carb">–</div>
+          <div class="label">hiilihydr. g</div>
+        </div>
+        <div class="macro">
+          <div class="value" id="s-fat">–</div>
+          <div class="label">rasva g</div>
+        </div>
+        <div class="macro">
+          <div class="value" id="s-fib">–</div>
+          <div class="label">kuitu g</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="add-section">
+      <button class="camera-btn" id="open-camera">
+        <span class="icon">📷</span> Kuvaa ateria
+      </button>
+      <input type="file" id="file-input" accept="image/*" capture="environment">
+
+      <div class="preview-wrap" id="preview-wrap">
+        <img id="preview-img" src="" alt="Esikatselu">
+        <button class="confirm-btn" id="confirm-btn">
+          <span id="confirm-text">Analysoi ateria</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+        <button class="cancel-btn" id="cancel-btn">Peruuta</button>
+      </div>
+    </div>
+
+    <div id="meals-list"></div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" style="display:none">
+    <div id="history-list"></div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let currentDate = new Date();
+currentDate.setHours(0,0,0,0);
+let pendingImageB64 = null;
+let pendingMediaType = null;
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff === 0) return 'Tänään';
+  if (diff === -1) return 'Eilen';
+  return d.toLocaleDateString('fi-FI', { day:'numeric', month:'short' });
+}
+function isoDate(d) {
+  return d.toISOString().split('T')[0];
+}
+function fmtTime(isoStr) {
+  return new Date(isoStr).toLocaleTimeString('fi-FI', { hour:'2-digit', minute:'2-digit' });
+}
+function toast(msg, dur = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+function n(val) { return val != null ? val : '–'; }
+
+// ── Date navigation ───────────────────────────────────────────────────────────
+function updateDateLabel() {
+  document.getElementById('current-date-label').textContent = fmtDate(currentDate);
+  // disable next if today
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('next-day').disabled = currentDate >= today;
+}
+document.getElementById('prev-day').addEventListener('click', () => {
+  currentDate = new Date(currentDate - 86400000);
+  updateDateLabel();
+  loadDay();
+});
+document.getElementById('next-day').addEventListener('click', () => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (currentDate < today) {
+    currentDate = new Date(+currentDate + 86400000);
+    updateDateLabel();
+    loadDay();
+  }
+});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-today').style.display = btn.dataset.tab === 'today' ? '' : 'none';
+    document.getElementById('tab-history').style.display = btn.dataset.tab === 'history' ? '' : 'none';
+    if (btn.dataset.tab === 'history') loadHistory();
+  });
+});
+
+// ── Camera / file input ───────────────────────────────────────────────────────
+document.getElementById('open-camera').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingMediaType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    // strip "data:image/...;base64," prefix
+    pendingImageB64 = dataUrl.split(',')[1];
+    document.getElementById('preview-img').src = dataUrl;
+    document.getElementById('preview-wrap').classList.add('visible');
+    document.getElementById('open-camera').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  // reset so same file can be re-selected
+  e.target.value = '';
+});
+
+document.getElementById('cancel-btn').addEventListener('click', cancelPreview);
+function cancelPreview() {
+  pendingImageB64 = null;
+  document.getElementById('preview-wrap').classList.remove('visible');
+  document.getElementById('open-camera').style.display = '';
+}
+
+document.getElementById('confirm-btn').addEventListener('click', async () => {
+  if (!pendingImageB64) return;
+  const btn = document.getElementById('confirm-btn');
+  const spinner = document.getElementById('spinner');
+  const text = document.getElementById('confirm-text');
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  text.textContent = 'Analysoidaan…';
+
+  try {
+    const resp = await fetch('/api/meals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_b64: pendingImageB64,
+        media_type: pendingMediaType,
+        eaten_at: new Date().toISOString(),
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Virhe');
+    toast('✅ Ateria lisätty!');
+    cancelPreview();
+    loadDay();
+  } catch (err) {
+    toast('❌ ' + err.message, 4000);
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    text.textContent = 'Analysoi ateria';
+  }
+});
+
+// ── Load today's meals + summary ─────────────────────────────────────────────
+async function loadDay() {
+  const day = isoDate(currentDate);
+  const [mealsResp, summaryResp] = await Promise.all([
+    fetch(`/api/meals?date=${day}`),
+    fetch(`/api/summary?date=${day}`),
+  ]);
+  const meals = await mealsResp.json();
+  const summary = await summaryResp.json();
+
+  // summary
+  document.getElementById('s-kcal').textContent = n(summary.calories);
+  document.getElementById('s-prot').textContent = n(summary.protein_g);
+  document.getElementById('s-carb').textContent = n(summary.carbs_g);
+  document.getElementById('s-fat').textContent  = n(summary.fat_g);
+  document.getElementById('s-fib').textContent  = n(summary.fiber_g);
+
+  // meals
+  const list = document.getElementById('meals-list');
+  if (!meals.length) {
+    list.innerHTML = `<div class="empty"><div class="em">🍽️</div>Ei aterioita tälle päivälle.<br>Kuvaa ensimmäinen ateriasi!</div>`;
+    return;
+  }
+  list.innerHTML = meals.map(m => {
+    const imgHtml = m.image_b64
+      ? `<img src="data:image/jpeg;base64,${m.image_b64}" alt="ateria">`
+      : `<div class="no-img">🍽️</div>`;
+    return `
+      <div class="meal-card">
+        ${imgHtml}
+        <div class="meal-info">
+          <div class="time">${fmtTime(m.eaten_at)}</div>
+          <div class="desc">${m.description}</div>
+          <div class="macros">
+            ${m.calories != null ? `<span class="kcal-badge">${m.calories} kcal</span>` : ''}
+            ${m.protein_g != null ? `<span>P ${m.protein_g}g</span>` : ''}
+            ${m.carbs_g  != null ? `<span>H ${m.carbs_g}g</span>`  : ''}
+            ${m.fat_g    != null ? `<span>R ${m.fat_g}g</span>`    : ''}
+            ${m.fiber_g  != null ? `<span>K ${m.fiber_g}g</span>`  : ''}
+          </div>
+        </div>
+        <button class="delete-btn" onclick="deleteMeal(${m.id})" title="Poista">✕</button>
+      </div>`;
+  }).join('');
+}
+
+async function deleteMeal(id) {
+  if (!confirm('Poistetaanko ateria?')) return;
+  await fetch(`/api/meals/${id}`, { method: 'DELETE' });
+  loadDay();
+}
+
+// ── History tab ───────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const resp = await fetch('/api/history');
+  const days = await resp.json();
+  const list = document.getElementById('history-list');
+  if (!days.length) {
+    list.innerHTML = `<div class="empty"><div class="em">📅</div>Ei historiatietoja vielä.</div>`;
+    return;
+  }
+  list.innerHTML = days.map(d => `
+    <div class="history-day" onclick="jumpToDay('${d.day}')">
+      <div>
+        <div class="day-label">${new Date(d.day + 'T12:00').toLocaleDateString('fi-FI', { weekday:'long', day:'numeric', month:'long' })}</div>
+        <div class="day-meta">${d.meal_count} ateriaa</div>
+      </div>
+      <div class="day-kcal">${d.calories ?? '–'} kcal</div>
+    </div>`).join('');
+}
+
+function jumpToDay(isoStr) {
+  currentDate = new Date(isoStr + 'T00:00');
+  updateDateLabel();
+  // switch to today tab
+  document.querySelectorAll('nav.tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === 'today');
+  });
+  document.getElementById('tab-today').style.display = '';
+  document.getElementById('tab-history').style.display = 'none';
+  loadDay();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateDateLabel();
+loadDay();
+</script>
+</body>
+</html>
