@@ -299,7 +299,7 @@ function fmtDate(d) {
   return d.toLocaleDateString('fi-FI', { day:'numeric', month:'short' });
 }
 function isoDate(d) {
-  return d.toISOString().split('T')[0];
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function fmtTime(isoStr) {
   return new Date(isoStr).toLocaleTimeString('fi-FI', { hour:'2-digit', minute:'2-digit' });
@@ -403,7 +403,7 @@ document.getElementById('confirm-btn').addEventListener('click', async () => {
       body: JSON.stringify({
         image_b64: pendingImageB64,
         media_type: pendingMediaType,
-        eaten_at: new Date().toISOString(),
+        eaten_at: new Date().toLocaleString('sv-SE').replace(' ', 'T'),
       }),
     });
     const data = await resp.json();
