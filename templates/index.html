@@ -134,6 +134,24 @@
     .history-day .day-meta { font-size: .75rem; color: var(--muted); margin-top: 1px; }
     .history-day .day-kcal { font-size: 1.05rem; font-weight: 700; color: var(--orange); }
 
+    /* === AUTH SCREEN === */
+    .auth-screen { display: none; position: fixed; inset: 0; background: var(--green); z-index: 900; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+    .auth-screen.open { display: flex; }
+    .auth-logo { font-size: 3rem; margin-bottom: 8px; }
+    .auth-title { color: #fff; font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .auth-subtitle { color: rgba(255,255,255,.75); font-size: .88rem; margin-bottom: 32px; }
+    .auth-card { background: #fff; border-radius: 20px; padding: 24px; width: 100%; max-width: 360px; }
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 20px; background: var(--bg); border-radius: 10px; padding: 3px; }
+    .auth-tabs button { flex: 1; padding: 8px; border: none; background: none; border-radius: 8px; font-size: .88rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .auth-tabs button.active { background: #fff; color: var(--green); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .auth-field { margin-bottom: 12px; }
+    .auth-field label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .auth-field input { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 11px 14px; font-size: .95rem; font-family: inherit; }
+    .auth-field input:focus { outline: none; border-color: var(--green); }
+    .auth-btn { width: 100%; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 4px; }
+    .auth-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .auth-error { color: #dc2626; font-size: .82rem; margin-top: 8px; text-align: center; min-height: 18px; }
+
     /* === BARCODE SCANNER === */
     .scanner-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 600; flex-direction: column; }
     .scanner-overlay.open { display: flex; }
@@ -208,10 +226,13 @@
 
 <header>
   <h1>🥗 Ruokapäiväkirja</h1>
-  <div class="date-nav">
-    <button id="prev-day">‹</button>
-    <span id="date-label"></span>
-    <button id="next-day">›</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="date-nav">
+      <button id="prev-day">‹</button>
+      <span id="date-label"></span>
+      <button id="next-day">›</button>
+    </div>
+    <button id="logout-btn" title="Kirjaudu ulos" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:.85rem;cursor:pointer;display:none;">↪</button>
   </div>
 </header>
 
@@ -302,6 +323,32 @@
     </div>
   </div>
 </main>
+
+<!-- ── AUTH SCREEN ── -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-logo">🥗</div>
+  <div class="auth-title">Ruokapäiväkirja</div>
+  <div class="auth-subtitle">Kirjaudu tai luo tili</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="active" id="tab-login-btn" onclick="showAuthTab('login')">Kirjaudu</button>
+      <button id="tab-register-btn" onclick="showAuthTab('register')">Luo tili</button>
+    </div>
+    <div id="auth-login">
+      <div class="auth-field"><label>Sähköposti</label><input type="email" id="login-email" autocomplete="email" placeholder="nimi@example.com"></div>
+      <div class="auth-field"><label>Salasana</label><input type="password" id="login-password" autocomplete="current-password" placeholder="••••••"></div>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">Kirjaudu</button>
+      <div class="auth-error" id="login-error"></div>
+    </div>
+    <div id="auth-register" style="display:none">
+      <div class="auth-field"><label>Sähköposti</label><input type="email" id="reg-email" autocomplete="email" placeholder="nimi@example.com"></div>
+      <div class="auth-field"><label>Salasana (min. 6 merkkiä)</label><input type="password" id="reg-password" autocomplete="new-password" placeholder="••••••"></div>
+      <div class="auth-field" id="invite-field"><label>Kutsukoodi</label><input type="text" id="reg-invite" placeholder="Kysy koodi Markolta"></div>
+      <button class="auth-btn" id="register-btn" onclick="doRegister()">Luo tili</button>
+      <div class="auth-error" id="register-error"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ── BARCODE SCANNER ── -->
 <div class="scanner-overlay" id="scanner-overlay">
@@ -952,11 +999,86 @@ document.getElementById('goals-save').onclick = async () => {
   if (resp.ok) { goals = await resp.json(); toast('✅ Tavoitteet tallennettu!'); renderProgressBars({}); }
 };
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function showAuthTab(tab) {
+  document.getElementById('auth-login').style.display    = tab==='login'    ? '' : 'none';
+  document.getElementById('auth-register').style.display = tab==='register' ? '' : 'none';
+  document.getElementById('tab-login-btn').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register-btn').classList.toggle('active', tab==='register');
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  document.getElementById('login-btn').disabled = true;
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error; return; }
+    startApp(data.email);
+  } finally { document.getElementById('login-btn').disabled = false; }
+}
+
+async function doRegister() {
+  const email  = document.getElementById('reg-email').value.trim();
+  const pass   = document.getElementById('reg-password').value;
+  const invite = document.getElementById('reg-invite').value.trim();
+  const errEl  = document.getElementById('register-error');
+  errEl.textContent = '';
+  document.getElementById('register-btn').disabled = true;
+  try {
+    const resp = await fetch('/api/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass, invite_code: invite})
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error; return; }
+    startApp(data.email);
+  } finally { document.getElementById('register-btn').disabled = false; }
+}
+
+function startApp(email) {
+  document.getElementById('auth-screen').classList.remove('open');
+  document.getElementById('logout-btn').style.display = '';
+  document.title = 'Ruokapäiväkirja';
+}
+
+document.getElementById('logout-btn').onclick = async () => {
+  if (!confirm('Kirjaudu ulos?')) return;
+  await fetch('/api/auth/logout', {method:'POST'});
+  document.getElementById('auth-screen').classList.add('open');
+  document.getElementById('logout-btn').style.display = 'none';
+};
+
+// Enter-näppäin kirjautumiseen
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+document.getElementById('reg-invite').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {
-  await loadGoals();
-  updateDateLabel();
-  loadDay();
+  const resp = await fetch('/api/auth/me');
+  const data = await resp.json();
+  if (data.id) {
+    startApp(data.email);
+    await loadGoals();
+    updateDateLabel();
+    loadDay();
+  } else {
+    document.getElementById('auth-screen').classList.add('open');
+    // Lataa silti kun kirjaudutaan
+    const origStart = startApp;
+    window.startApp = async (email) => {
+      origStart(email);
+      await loadGoals();
+      updateDateLabel();
+      loadDay();
+    };
+  }
 })();
 </script>
 </body>
