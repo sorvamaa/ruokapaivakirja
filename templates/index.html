@@ -294,6 +294,11 @@
       <div class="goal-field"><label>Rasva (g)</label><input type="number" id="g-fat" placeholder="65"></div>
       <div class="goal-field"><label>Kuitu (g)</label><input type="number" id="g-fib" placeholder="30"></div>
       <button class="save-btn" id="goals-save">Tallenna tavoitteet</button>
+      <a href="/api/export/meals.csv" download style="display:block;margin-top:10px;padding:13px;background:var(--blue-light);color:var(--blue);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;text-decoration:none;">⬇ Lataa historia CSV-tiedostona</a>
+      <label style="display:block;margin-top:8px;padding:13px;background:var(--green-light);color:var(--green-dark);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;cursor:pointer;">
+        ⬆ Tuo historia CSV-tiedostosta
+        <input type="file" accept=".csv" id="import-csv-input" style="display:none">
+      </label>
     </div>
   </div>
 </main>
@@ -914,6 +919,24 @@ async function loadGoals() {
   document.getElementById('g-fat').value  = goals.fat_g ?? '';
   document.getElementById('g-fib').value  = goals.fiber_g ?? '';
 }
+
+document.getElementById('import-csv-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm(`Tuodaan tiedosto "${file.name}" tietokantaan. Olemassa olevat ateriat säilyvät — duplikaatteja ei tarkisteta. Jatketaanko?`)) {
+    e.target.value = ''; return;
+  }
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch('/api/import/meals', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    toast(`✅ Tuotu ${data.imported} ateriaa${data.skipped ? ', ohitettu '+data.skipped : ''}`, 4000);
+    loadDay();
+  } catch(err) { toast('❌ ' + err.message, 5000); }
+  e.target.value = '';
+});
 
 document.getElementById('goals-save').onclick = async () => {
   const body = {

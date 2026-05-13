@@ -1,8 +1,10 @@
 import os
+import io
+import csv
 import json
 import sqlite3
 from datetime import date, datetime
-from flask import Flask, request, jsonify, send_from_directory, g
+from flask import Flask, request, jsonify, send_from_directory, g, Response
 import anthropic
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -343,6 +345,78 @@ def delete_weight(entry_id):
     db.execute("DELETE FROM weights WHERE id = ?", (entry_id,))
     db.commit()
     return jsonify({"deleted": entry_id})
+
+# ---------------------------------------------------------------------------
+# CSV export
+# ---------------------------------------------------------------------------
+
+@app.route("/api/import/meals", methods=["POST"])
+def import_meals_csv():
+    if "file" not in request.files:
+        return jsonify({"error": "Tiedosto puuttuu"}), 400
+    f = request.files["file"]
+    try:
+        content = f.read().decode("utf-8-sig")  # strips BOM if present
+        reader = csv.DictReader(io.StringIO(content))
+        db = get_db()
+        imported = 0
+        skipped = 0
+        for row in reader:
+            try:
+                day  = row.get("Päivämäärä", "").strip()
+                time = row.get("Kellonaika", "00:00").strip() or "00:00"
+                desc = row.get("Kuvaus", "").strip()
+                if not day or not desc:
+                    skipped += 1
+                    continue
+                # Parse "DD.MM.YYYY" → "YYYY-MM-DD"
+                d, m, y = day.split(".")
+                eaten_at = f"{y}-{m.zfill(2)}-{d.zfill(2)}T{time}:00"
+
+                def flt(key):
+                    v = row.get(key, "").strip()
+                    return float(v) if v else None
+
+                db.execute(
+                    """INSERT INTO meals (eaten_at, description, calories, protein_g, carbs_g, fat_g, fiber_g)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (eaten_at, desc, flt("Kalorit (kcal)"), flt("Proteiini (g)"),
+                     flt("Hiilihydraatit (g)"), flt("Rasva (g)"), flt("Kuitu (g)"))
+                )
+                imported += 1
+            except Exception:
+                skipped += 1
+        db.commit()
+        return jsonify({"imported": imported, "skipped": skipped})
+    except Exception as e:
+        return jsonify({"error": f"Tuonti epäonnistui: {e}"}), 500
+
+@app.route("/api/export/meals.csv")
+def export_meals_csv():
+    db = get_db()
+    rows = db.execute(
+        "SELECT eaten_at, description, calories, protein_g, carbs_g, fat_g, fiber_g FROM meals ORDER BY eaten_at"
+    ).fetchall()
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Päivämäärä", "Kellonaika", "Kuvaus", "Kalorit (kcal)", "Proteiini (g)", "Hiilihydraatit (g)", "Rasva (g)", "Kuitu (g)"])
+    for r in rows:
+        dt = r["eaten_at"]
+        try:
+            parsed = datetime.fromisoformat(dt)
+            day = parsed.strftime("%d.%m.%Y")
+            time = parsed.strftime("%H:%M")
+        except Exception:
+            day, time = dt, ""
+        w.writerow([day, time, r["description"], r["calories"], r["protein_g"], r["carbs_g"], r["fat_g"], r["fiber_g"]])
+
+    output = buf.getvalue()
+    return Response(
+        "﻿" + output,  # BOM for Excel UTF-8 compatibility
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=ruokapaivakirja.csv"}
+    )
 
 # ---------------------------------------------------------------------------
 # Barcode API  (Open Food Facts)
