@@ -9,6 +9,7 @@
   <title>Ruokapäiväkirja</title>
   <link rel="manifest" href="/static/manifest.json">
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -134,6 +135,46 @@
     .history-day .day-meta { font-size: .75rem; color: var(--muted); margin-top: 1px; }
     .history-day .day-kcal { font-size: 1.05rem; font-weight: 700; color: var(--orange); }
 
+    /* === WATER CARD === */
+    .water-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-top: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .water-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; letter-spacing: .5px; }
+    .water-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .water-total { font-size: 1.5rem; font-weight: 800; color: var(--blue); }
+    .water-goal  { font-size: .75rem; color: var(--muted); }
+    .water-bar   { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+    .water-bar .fill { height: 100%; background: var(--blue); border-radius: 4px; transition: width .4s; }
+    .water-btns  { display: flex; gap: 6px; flex-wrap: wrap; }
+    .water-btn   { flex: 1; min-width: 60px; padding: 9px 6px; background: var(--blue-light); color: var(--blue); border: none; border-radius: 10px; font-size: .82rem; font-weight: 700; cursor: pointer; }
+    .water-btn:active { opacity: .75; }
+    .water-undo  { padding: 9px 12px; background: var(--border); color: var(--muted); border: none; border-radius: 10px; font-size: .82rem; font-weight: 700; cursor: pointer; }
+
+    /* === FAVORITES OVERLAY === */
+    .favs-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 500; align-items: flex-end; }
+    .favs-overlay.open { display: flex; }
+    .favs-sheet { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-height: 85dvh; display: flex; flex-direction: column; }
+    .favs-header { padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .favs-header h2 { font-size: 1rem; font-weight: 700; }
+    .favs-header button { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--muted); padding: 4px; }
+    .favs-list { overflow-y: auto; padding: 10px 14px 24px; flex: 1; }
+    .fav-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .fav-item:last-child { border-bottom: none; }
+    .fav-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+    .fav-no-img { width: 48px; height: 48px; border-radius: 10px; background: var(--green-light); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+    .fav-info { flex: 1; min-width: 0; }
+    .fav-info .fav-name { font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fav-info .fav-meta { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+    .fav-del { background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px; font-size: .9rem; flex-shrink: 0; }
+    .fav-del:hover { color: #dc2626; }
+    .fav-empty { text-align: center; color: var(--muted); padding: 32px 16px; font-size: .88rem; }
+
+    /* === TRENDS TAB === */
+    .trends-toggle { display: flex; gap: 0; margin-bottom: 14px; background: var(--card); border-radius: 12px; padding: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .trends-toggle button { flex: 1; padding: 8px; border: none; background: none; border-radius: 9px; font-size: .88rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .trends-toggle button.active { background: var(--green); color: #fff; }
+    .chart-card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .chart-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: .5px; }
+    .chart-wrap { position: relative; height: 200px; }
+
     /* === AUTH SCREEN === */
     .auth-screen { display: none; position: fixed; inset: 0; background: var(--green); z-index: 900; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
     .auth-screen.open { display: flex; }
@@ -239,6 +280,7 @@
 <nav class="tabs">
   <button class="active" data-tab="today">Tänään</button>
   <button data-tab="history">Historia</button>
+  <button data-tab="trends">Trendit</button>
   <button data-tab="weight">Paino</button>
   <button data-tab="goals">Tavoitteet</button>
 </nav>
@@ -262,6 +304,7 @@
       <button class="btn-camera" id="open-camera"><span>📷</span> Kuvaa</button>
       <button class="btn-manual" id="open-barcode" style="background:#ede9fe;color:#7c3aed"><span>〡〡〡</span> Viivakoodi</button>
       <button class="btn-manual" id="open-manual"><span>✏️</span> Teksti</button>
+      <button class="btn-manual" id="open-favs" style="background:#fff7ed;color:#ea580c"><span>⭐</span> Suosikit</button>
     </div>
     <input type="file" id="file-input" accept="image/*" capture="environment">
 
@@ -286,11 +329,46 @@
     </div>
 
     <div id="meals-list"></div>
+
+    <!-- Water tracking -->
+    <div class="water-card">
+      <h2>💧 Vedenjuonti</h2>
+      <div class="water-top">
+        <div>
+          <div class="water-total" id="water-total">0 ml</div>
+          <div class="water-goal" id="water-goal-label">tavoite 2000 ml</div>
+        </div>
+      </div>
+      <div class="water-bar"><div class="fill" id="water-bar-fill" style="width:0%"></div></div>
+      <div class="water-btns">
+        <button class="water-btn" onclick="addWater(200)">+200 ml</button>
+        <button class="water-btn" onclick="addWater(300)">+300 ml</button>
+        <button class="water-btn" onclick="addWater(400)">+400 ml</button>
+        <button class="water-btn" onclick="addWater(500)">+500 ml</button>
+        <button class="water-undo" id="water-undo" onclick="undoWater()" style="display:none">↩</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── HISTORY ── -->
   <div id="tab-history" style="display:none">
     <div id="history-list"></div>
+  </div>
+
+  <!-- ── TRENDIT ── -->
+  <div id="tab-trends" style="display:none">
+    <div class="trends-toggle">
+      <button class="active" id="trends-week" onclick="setTrendsPeriod('week')">Viikko</button>
+      <button id="trends-month" onclick="setTrendsPeriod('month')">30 pv</button>
+    </div>
+    <div class="chart-card">
+      <h2>Kalorit (kcal)</h2>
+      <div class="chart-wrap"><canvas id="chart-kcal"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Makrot (g)</h2>
+      <div class="chart-wrap"><canvas id="chart-macros"></canvas></div>
+    </div>
   </div>
 
   <!-- ── WEIGHT ── -->
@@ -388,6 +466,17 @@
   </div>
 </div>
 
+<!-- ── FAVORITES OVERLAY ── -->
+<div class="favs-overlay" id="favs-overlay">
+  <div class="favs-sheet">
+    <div class="favs-header">
+      <h2>⭐ Suosikit</h2>
+      <button onclick="closeFavs()">✕</button>
+    </div>
+    <div class="favs-list" id="favs-list"></div>
+  </div>
+</div>
+
 <!-- ── MEAL MODAL ── -->
 <div class="modal-overlay" id="meal-modal">
   <div class="modal">
@@ -411,6 +500,7 @@
     </div>
     <div class="modal-actions">
       <button class="save-btn" id="modal-save">Tallenna</button>
+      <button class="close-btn" id="modal-fav" title="Tallenna suosikiksi" style="background:#fff7ed;color:#ea580c;">⭐</button>
       <button class="close-btn" id="modal-close">Sulje</button>
     </div>
   </div>
@@ -467,7 +557,7 @@ document.getElementById('next-day').onclick = () => {
 };
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const tabs = ['today','history','weight','goals'];
+const tabs = ['today','history','trends','weight','goals'];
 document.querySelectorAll('nav.tabs button').forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
@@ -476,6 +566,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn => {
     if (btn.dataset.tab === 'history') loadHistory();
     if (btn.dataset.tab === 'weight') loadWeight();
     if (btn.dataset.tab === 'goals') loadGoals();
+    if (btn.dataset.tab === 'trends') loadTrends();
   };
 });
 
@@ -573,6 +664,7 @@ async function loadDay() {
   const [mealsResp, summaryResp] = await Promise.all([
     fetch(`/api/meals?date=${day}`), fetch(`/api/summary?date=${day}`)
   ]);
+  loadWater(day);
   const meals = await mealsResp.json();
   const summary = await summaryResp.json();
 
@@ -743,6 +835,24 @@ document.getElementById('recalc-btn').onclick = async () => {
 
 document.getElementById('modal-close').onclick = () => document.getElementById('meal-modal').classList.remove('open');
 document.getElementById('meal-modal').onclick = e => { if (e.target === document.getElementById('meal-modal')) document.getElementById('meal-modal').classList.remove('open'); };
+
+document.getElementById('modal-fav').onclick = async () => {
+  if (!openMealId) return;
+  const resp = await fetch(`/api/meals?date=${isoDate(currentDate)}`);
+  const meals = await resp.json();
+  const m = meals.find(x => x.id === openMealId);
+  if (!m) return;
+  let analysis = {};
+  try { analysis = JSON.parse(m.analysis || '{}'); } catch(e) {}
+  const r = await fetch('/api/favorites', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name: m.description, description: m.description,
+      calories: m.calories, protein_g: m.protein_g, carbs_g: m.carbs_g,
+      fat_g: m.fat_g, fiber_g: m.fiber_g, image_b64: m.image_b64, analysis })
+  });
+  if (r.ok) { toast('⭐ Lisätty suosikkeihin!'); }
+  else toast('❌ Tallennus epäonnistui');
+};
 
 document.getElementById('modal-save').onclick = async () => {
   if (!openMealId) return;
@@ -1058,6 +1168,149 @@ document.getElementById('logout-btn').onclick = async () => {
 // Enter-näppäin kirjautumiseen
 document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 document.getElementById('reg-invite').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+
+// ── Water ─────────────────────────────────────────────────────────────────────
+let lastWaterEntry = null;
+
+async function loadWater(day) {
+  const resp = await fetch(`/api/water?date=${day || isoDate(currentDate)}`);
+  if (!resp.ok) return;
+  const data = await resp.json();
+  const total = data.total_ml || 0;
+  const goal  = data.goal_ml  || 2000;
+  document.getElementById('water-total').textContent = total + ' ml';
+  document.getElementById('water-goal-label').textContent = 'tavoite ' + goal + ' ml';
+  const pct = Math.min(100, Math.round((total / goal) * 100));
+  document.getElementById('water-bar-fill').style.width = pct + '%';
+  const entries = data.entries || [];
+  lastWaterEntry = entries.length ? entries[entries.length - 1] : null;
+  document.getElementById('water-undo').style.display = lastWaterEntry ? '' : 'none';
+}
+
+async function addWater(ml) {
+  const resp = await fetch('/api/water', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ amount_ml: ml, logged_at: localIso() })
+  });
+  if (resp.ok) { toast(`💧 +${ml} ml lisätty`); loadWater(); }
+}
+
+async function undoWater() {
+  if (!lastWaterEntry) return;
+  await fetch(`/api/water/${lastWaterEntry.id}`, { method: 'DELETE' });
+  toast('↩ Poistettu');
+  loadWater();
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+document.getElementById('open-favs').onclick = () => openFavs();
+document.getElementById('favs-overlay').onclick = e => { if (e.target === document.getElementById('favs-overlay')) closeFavs(); };
+
+function closeFavs() { document.getElementById('favs-overlay').classList.remove('open'); }
+
+async function openFavs() {
+  document.getElementById('favs-overlay').classList.add('open');
+  const resp = await fetch('/api/favorites');
+  const favs = await resp.json();
+  const list = document.getElementById('favs-list');
+  if (!favs.length) {
+    list.innerHTML = '<div class="fav-empty">Ei suosikkeja vielä.<br>Tallenna ateria suosikiksi ⭐-painikkeella.</div>';
+    return;
+  }
+  list.innerHTML = favs.map(f => {
+    const thumb = f.image_b64
+      ? `<img class="fav-thumb" src="data:image/jpeg;base64,${f.image_b64}" alt="">`
+      : `<div class="fav-no-img">🍽️</div>`;
+    const kcal = f.calories ? `${f.calories} kcal · ` : '';
+    const prot = f.protein_g ? `P ${f.protein_g}g` : '';
+    const uses = f.use_count ? ` · ${f.use_count}× käytetty` : '';
+    return `<div class="fav-item" onclick="useFavorite(${f.id})">
+      ${thumb}
+      <div class="fav-info">
+        <div class="fav-name">${f.name}</div>
+        <div class="fav-meta">${kcal}${prot}${uses}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation();deleteFavorite(${f.id})" title="Poista suosikeista">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function useFavorite(id) {
+  const resp = await fetch(`/api/favorites/${id}/use`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ eaten_at: localIso() })
+  });
+  if (resp.ok) {
+    closeFavs();
+    toast('✅ Ateria lisätty!');
+    loadDay();
+  } else toast('❌ Virhe lisättäessä');
+}
+
+async function deleteFavorite(id) {
+  if (!confirm('Poistetaanko suosikeista?')) return;
+  await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
+  openFavs();
+}
+
+// ── Trends ────────────────────────────────────────────────────────────────────
+let trendsPeriod = 'week';
+let chartKcal   = null;
+let chartMacros = null;
+
+function setTrendsPeriod(p) {
+  trendsPeriod = p;
+  document.getElementById('trends-week').classList.toggle('active', p === 'week');
+  document.getElementById('trends-month').classList.toggle('active', p === 'month');
+  loadTrends();
+}
+
+function fmtDay(s) {
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' });
+}
+
+async function loadTrends() {
+  const resp = await fetch(`/api/trends?period=${trendsPeriod}`);
+  if (!resp.ok) return;
+  const data = await resp.json();
+
+  const labels = data.map(r => fmtDay(r.day));
+  const kcals  = data.map(r => r.calories   || 0);
+  const prots  = data.map(r => r.protein_g  || 0);
+  const carbs  = data.map(r => r.carbs_g    || 0);
+  const fats   = data.map(r => r.fat_g      || 0);
+
+  const commonOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true, ticks: { font: { size: 10 } } } }
+  };
+
+  if (chartKcal) chartKcal.destroy();
+  chartKcal = new Chart(document.getElementById('chart-kcal'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'kcal', data: kcals, backgroundColor: '#fb923c', borderRadius: 4 }]
+    },
+    options: { ...commonOpts, plugins: { ...commonOpts.plugins, legend: { display: false } } }
+  });
+
+  if (chartMacros) chartMacros.destroy();
+  chartMacros = new Chart(document.getElementById('chart-macros'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Proteiini', data: prots, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.1)', tension: .3, fill: false, pointRadius: 3 },
+        { label: 'Hiilihydr.', data: carbs, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', tension: .3, fill: false, pointRadius: 3 },
+        { label: 'Rasva', data: fats,  borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,.1)', tension: .3, fill: false, pointRadius: 3 },
+      ]
+    },
+    options: commonOpts
+  });
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {

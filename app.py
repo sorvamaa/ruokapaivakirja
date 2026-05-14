@@ -116,7 +116,40 @@ def init_db():
                 carbs_g    REAL,
                 fat_g      REAL,
                 fiber_g    REAL,
+                water_ml   INTEGER NOT NULL DEFAULT 2000,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        _exec(db, "ALTER TABLE goals ADD COLUMN IF NOT EXISTS water_ml INTEGER NOT NULL DEFAULT 2000")
+
+        # Water tracking
+        _exec(db, """
+            CREATE TABLE IF NOT EXISTS water (
+                id         SERIAL PRIMARY KEY,
+                user_id    INTEGER NOT NULL,
+                logged_at  TEXT    NOT NULL,
+                amount_ml  INTEGER NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        # Favorites (usein syödyt ateriat)
+        _exec(db, """
+            CREATE TABLE IF NOT EXISTS favorites (
+                id          SERIAL PRIMARY KEY,
+                user_id     INTEGER NOT NULL,
+                name        TEXT    NOT NULL,
+                description TEXT,
+                calories    REAL,
+                protein_g   REAL,
+                carbs_g     REAL,
+                fat_g       REAL,
+                fiber_g     REAL,
+                image_b64   TEXT,
+                analysis    TEXT,
+                use_count   INTEGER NOT NULL DEFAULT 0,
+                last_used   TIMESTAMPTZ,
+                created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
 
@@ -556,6 +589,149 @@ def lookup_barcode(barcode):
                     "per_100g": {"calories": per100("energy-kcal"), "protein_g": per100("proteins"),
                                  "carbs_g": per100("carbohydrates"), "fat_g": per100("fat"),
                                  "fiber_g": per100("fiber")}})
+
+# ---------------------------------------------------------------------------
+# Water API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/water", methods=["GET", "POST"])
+@auth_required
+def water_endpoint():
+    uid = current_user_id()
+    db  = get_db()
+    if request.method == "POST":
+        data      = request.get_json(force=True)
+        amount_ml = data.get("amount_ml")
+        logged_at = data.get("logged_at", datetime.now().isoformat())
+        if not amount_ml:
+            return jsonify({"error": "amount_ml required"}), 400
+        new_id = _insert(db,
+            "INSERT INTO water (user_id, logged_at, amount_ml) VALUES (%s, %s, %s) RETURNING id",
+            (uid, logged_at, amount_ml)
+        )
+        db.commit()
+        return jsonify({"id": new_id, "amount_ml": amount_ml}), 201
+    day  = request.args.get("date", date.today().isoformat())
+    rows = _fetchall(db,
+        "SELECT id, logged_at, amount_ml FROM water WHERE user_id=%s AND logged_at::date=%s::date ORDER BY logged_at",
+        (uid, day)
+    )
+    total = sum(r["amount_ml"] for r in rows)
+    goal_row = _fetchone(db, "SELECT water_ml FROM goals WHERE user_id=%s", (uid,))
+    goal_ml  = goal_row["water_ml"] if goal_row and goal_row["water_ml"] else 2000
+    return jsonify({"entries": [dict(r) for r in rows], "total_ml": total, "goal_ml": goal_ml})
+
+
+@app.route("/api/water/<int:entry_id>", methods=["DELETE"])
+@auth_required
+def delete_water_entry(entry_id):
+    uid = current_user_id()
+    db  = get_db()
+    _exec(db, "DELETE FROM water WHERE id=%s AND user_id=%s", (entry_id, uid))
+    db.commit()
+    return jsonify({"deleted": entry_id})
+
+# ---------------------------------------------------------------------------
+# Favorites API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/favorites", methods=["GET"])
+@auth_required
+def list_favorites():
+    uid  = current_user_id()
+    db   = get_db()
+    rows = _fetchall(db,
+        "SELECT id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, use_count FROM favorites WHERE user_id=%s ORDER BY use_count DESC, created_at DESC",
+        (uid,)
+    )
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/favorites", methods=["POST"])
+@auth_required
+def save_favorite():
+    uid  = current_user_id()
+    data = request.get_json(force=True)
+    name = (data.get("name") or data.get("description") or "Suosikki")[:80]
+    db   = get_db()
+    new_id = _insert(db, """
+        INSERT INTO favorites (user_id, name, description, calories, protein_g, carbs_g, fat_g, fiber_g, image_b64, analysis)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+    """, (uid, name, data.get("description"), data.get("calories"), data.get("protein_g"),
+          data.get("carbs_g"), data.get("fat_g"), data.get("fiber_g"),
+          data.get("image_b64"), json.dumps(data.get("analysis", {}), ensure_ascii=False)))
+    db.commit()
+    return jsonify({"id": new_id}), 201
+
+
+@app.route("/api/favorites/<int:fav_id>", methods=["DELETE"])
+@auth_required
+def delete_favorite(fav_id):
+    uid = current_user_id()
+    db  = get_db()
+    _exec(db, "DELETE FROM favorites WHERE id=%s AND user_id=%s", (fav_id, uid))
+    db.commit()
+    return jsonify({"deleted": fav_id})
+
+
+@app.route("/api/favorites/<int:fav_id>/use", methods=["POST"])
+@auth_required
+def use_favorite(fav_id):
+    uid = current_user_id()
+    db  = get_db()
+    fav = _fetchone(db, "SELECT * FROM favorites WHERE id=%s AND user_id=%s", (fav_id, uid))
+    if not fav:
+        return jsonify({"error": "Not found"}), 404
+    try:
+        analysis = json.loads(fav["analysis"]) if fav["analysis"] else {}
+    except Exception:
+        analysis = {}
+    analysis.update({
+        "description": fav["description"] or fav["name"],
+        "calories":    fav["calories"],
+        "protein_g":   fav["protein_g"],
+        "carbs_g":     fav["carbs_g"],
+        "fat_g":       fav["fat_g"],
+        "fiber_g":     fav["fiber_g"],
+    })
+    data     = request.get_json(force=True) or {}
+    eaten_at = data.get("eaten_at", datetime.now().isoformat())
+    new_id   = _insert(db, """
+        INSERT INTO meals (user_id, eaten_at, description, image_b64, calories, protein_g, carbs_g, fat_g, fiber_g, analysis)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+    """, (uid, eaten_at, fav["description"] or fav["name"], fav["image_b64"],
+          fav["calories"], fav["protein_g"], fav["carbs_g"], fav["fat_g"], fav["fiber_g"],
+          json.dumps(analysis, ensure_ascii=False)))
+    _exec(db, "UPDATE favorites SET use_count=use_count+1, last_used=NOW() WHERE id=%s", (fav_id,))
+    db.commit()
+    return jsonify({"meal_id": new_id, "analysis": analysis}), 201
+
+# ---------------------------------------------------------------------------
+# Trends API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/trends")
+@auth_required
+def trends():
+    from datetime import timedelta
+    uid    = current_user_id()
+    period = request.args.get("period", "week")
+    days   = 7 if period == "week" else 30
+    db     = get_db()
+    start  = (date.today() - timedelta(days=days - 1)).isoformat()
+    rows   = _fetchall(db, """
+        SELECT eaten_at::date AS day,
+               ROUND(SUM(calories)::numeric, 0)  AS calories,
+               ROUND(SUM(protein_g)::numeric, 1) AS protein_g,
+               ROUND(SUM(carbs_g)::numeric, 1)   AS carbs_g,
+               ROUND(SUM(fat_g)::numeric, 1)     AS fat_g,
+               ROUND(SUM(fiber_g)::numeric, 1)   AS fiber_g
+        FROM meals
+        WHERE user_id=%s AND eaten_at::date >= %s::date
+        GROUP BY eaten_at::date
+        ORDER BY eaten_at::date
+    """, (uid, start))
+    return jsonify([{**dict(r), "day": str(r["day"])} for r in rows])
 
 # ---------------------------------------------------------------------------
 # Serve frontend
