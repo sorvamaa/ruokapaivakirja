@@ -707,6 +707,83 @@ def use_favorite(fav_id):
     return jsonify({"meal_id": new_id, "analysis": analysis}), 201
 
 # ---------------------------------------------------------------------------
+# Yesterday's AI feedback
+# ---------------------------------------------------------------------------
+
+FEEDBACK_PROMPT = """Olet kannustava ja hieman humoristinen ravitsemusvalmentaja-AI nimeltä "Ravuri". \
+Kommentoi käyttäjän eilistä syömistä lyhyesti (2-4 lausetta) suomeksi.
+
+Ohjeet:
+- Ole aina positiivinen ja kannustava, myös silloin kun mennyt huonommin
+- Nosta esille konkreettisesti ne asiat jotka menivät hyvin tai kaipaisivat huomiota
+- Voit lisätä sopivasti huumoria — ei saarnaava, ei liian opettavainen
+- Jos kalorit ovat selvästi alle tavoitteen, kysele merkitsemisestä
+- Ole lyhyt ja ytimekäs, älä luettele kaikkea
+
+Palauta VAIN viesti ilman otsikoita tai erikoismerkkejä."""
+
+@app.route("/api/feedback/yesterday")
+@auth_required
+def feedback_yesterday():
+    from datetime import timedelta
+    uid       = current_user_id()
+    db        = get_db()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    row = _fetchone(db, """
+        SELECT COUNT(*) AS meal_count,
+               ROUND(SUM(calories)::numeric,  0) AS calories,
+               ROUND(SUM(protein_g)::numeric, 1) AS protein_g,
+               ROUND(SUM(carbs_g)::numeric,   1) AS carbs_g,
+               ROUND(SUM(fat_g)::numeric,     1) AS fat_g,
+               ROUND(SUM(fiber_g)::numeric,   1) AS fiber_g
+        FROM meals WHERE user_id=%s AND eaten_at::date=%s::date
+    """, (uid, yesterday))
+
+    meal_count = int(row["meal_count"] or 0)
+
+    if meal_count == 0:
+        return jsonify({
+            "message": "Eiliseltä ei löydy yhtään merkintää päiväkirjastasi 📝 "
+                       "Se voi tarkoittaa että söit täydellisesti — tai että unohdit kirjata. "
+                       "Muistathan jatkossa merkitä ateriat, niin saan jotain kommentoitavaa!",
+            "has_data": False, "date": yesterday
+        })
+
+    g = _fetchone(db, "SELECT * FROM goals WHERE user_id=%s", (uid,))
+
+    def fmt(label, actual, goal):
+        if actual is None: return None
+        s = f"{label}: {actual}"
+        if goal:
+            diff = round(((float(actual) - float(goal)) / float(goal)) * 100)
+            sign = "+" if diff > 0 else ""
+            s += f" (tavoite {goal}, {sign}{diff}%)"
+        return s
+
+    lines = [f"Aterioita: {meal_count} kpl"]
+    for item in [
+        fmt("Kalorit kcal", row["calories"],  g["calories"]  if g else None),
+        fmt("Proteiini g",  row["protein_g"], g["protein_g"] if g else None),
+        fmt("Hiilihydr. g", row["carbs_g"],   g["carbs_g"]   if g else None),
+        fmt("Rasva g",      row["fat_g"],     g["fat_g"]     if g else None),
+        fmt("Kuitu g",      row["fiber_g"],   g["fiber_g"]   if g else None),
+    ]:
+        if item: lines.append(item)
+
+    context = "\n".join(lines)
+    user_msg = f"Eilinen tilanne:\n{context}\n\nGeneroi tsemppiviesti."
+
+    try:
+        if not ANTHROPIC_API_KEY:
+            raise ValueError("no key")
+        message = _claude(FEEDBACK_PROMPT, [{"role": "user", "content": user_msg}]).strip()
+    except Exception:
+        message = f"Eilen merkitsit {meal_count} ateriaa — hyvä suoritus! Jatka samaan malliin 💪"
+
+    return jsonify({"message": message, "has_data": True, "date": yesterday})
+
+# ---------------------------------------------------------------------------
 # Trends API
 # ---------------------------------------------------------------------------
 

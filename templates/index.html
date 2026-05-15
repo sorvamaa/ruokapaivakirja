@@ -175,6 +175,17 @@
     .chart-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: .5px; }
     .chart-wrap { position: relative; height: 200px; }
 
+    /* === FEEDBACK POPUP === */
+    .feedback-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 800; align-items: center; justify-content: center; padding: 20px; }
+    .feedback-overlay.open { display: flex; }
+    .feedback-card { background: var(--card); border-radius: 22px; padding: 24px 22px 20px; width: 100%; max-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,.2); animation: popIn .25s ease; }
+    @keyframes popIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .feedback-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 6px; }
+    .feedback-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); text-align: center; margin-bottom: 14px; }
+    .feedback-msg { font-size: .95rem; line-height: 1.55; color: var(--text); margin-bottom: 20px; }
+    .feedback-btn { width: 100%; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: 14px; font-size: .95rem; font-weight: 700; cursor: pointer; }
+    .feedback-btn:active { opacity: .85; }
+
     /* === AUTH SCREEN === */
     .auth-screen { display: none; position: fixed; inset: 0; background: var(--green); z-index: 900; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
     .auth-screen.open { display: flex; }
@@ -401,6 +412,16 @@
     </div>
   </div>
 </main>
+
+<!-- ── FEEDBACK POPUP ── -->
+<div class="feedback-overlay" id="feedback-overlay">
+  <div class="feedback-card">
+    <div class="feedback-emoji" id="feedback-emoji">💬</div>
+    <div class="feedback-label" id="feedback-label">Eilinen päivä</div>
+    <div class="feedback-msg" id="feedback-msg">Ladataan...</div>
+    <button class="feedback-btn" onclick="closeFeedback()">Selvä, kiitos! 💪</button>
+  </div>
+</div>
 
 <!-- ── AUTH SCREEN ── -->
 <div class="auth-screen" id="auth-screen">
@@ -1156,6 +1177,9 @@ function startApp(email) {
   document.getElementById('auth-screen').classList.remove('open');
   document.getElementById('logout-btn').style.display = '';
   document.title = 'Ruokapäiväkirja';
+  // Run full init after auth (login or register)
+  loadGoals().then(() => { updateDateLabel(); loadDay(); });
+  checkAndShowFeedback();
 }
 
 document.getElementById('logout-btn').onclick = async () => {
@@ -1168,6 +1192,47 @@ document.getElementById('logout-btn').onclick = async () => {
 // Enter-näppäin kirjautumiseen
 document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 document.getElementById('reg-invite').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+
+// ── Feedback popup ────────────────────────────────────────────────────────────
+function closeFeedback() {
+  document.getElementById('feedback-overlay').classList.remove('open');
+}
+
+async function checkAndShowFeedback() {
+  const today = isoDate(new Date());
+  const shownOn = localStorage.getItem('feedbackShownOn');
+  if (shownOn === today) return; // already shown today
+
+  // Show overlay immediately with loading state
+  document.getElementById('feedback-overlay').classList.add('open');
+
+  try {
+    const resp = await fetch('/api/feedback/yesterday');
+    if (!resp.ok) { closeFeedback(); return; }
+    const data = await resp.json();
+
+    // Pick emoji based on content hint
+    const msg = data.message || '';
+    const emoji = !data.has_data ? '📝'
+      : msg.includes('hien') || msg.includes('mahtav') || msg.includes('erin') ? '🏆'
+      : msg.includes('liik') || msg.includes('ylitt') ? '😅'
+      : msg.includes('vähän') || msg.includes('alhainen') || msg.includes('ali') ? '🤔'
+      : '💪';
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const label = yesterday.toLocaleDateString('fi-FI', { weekday:'long', day:'numeric', month:'long' });
+
+    document.getElementById('feedback-emoji').textContent = emoji;
+    document.getElementById('feedback-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    document.getElementById('feedback-msg').textContent = data.message;
+  } catch(e) {
+    closeFeedback();
+    return;
+  }
+
+  localStorage.setItem('feedbackShownOn', today);
+}
 
 // ── Water ─────────────────────────────────────────────────────────────────────
 let lastWaterEntry = null;
@@ -1318,19 +1383,8 @@ async function loadTrends() {
   const data = await resp.json();
   if (data.id) {
     startApp(data.email);
-    await loadGoals();
-    updateDateLabel();
-    loadDay();
   } else {
     document.getElementById('auth-screen').classList.add('open');
-    // Lataa silti kun kirjaudutaan
-    const origStart = startApp;
-    window.startApp = async (email) => {
-      origStart(email);
-      await loadGoals();
-      updateDateLabel();
-      loadDay();
-    };
   }
 })();
 </script>
