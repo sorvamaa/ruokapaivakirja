@@ -120,7 +120,44 @@
     .weight-list-item .wval { font-size: 1.2rem; font-weight: 700; color: var(--blue); }
     .weight-list-item .wdel { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; padding: 4px; }
 
-    /* Goals tab */
+    /* Goals tab — tavoitelaskuri */
+    .calc-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .calc-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; letter-spacing: .5px; }
+    .calc-card h3 { font-size: .82rem; font-weight: 700; color: var(--green-dark); margin-bottom: 10px; }
+    .calc-field { margin-bottom: 12px; }
+    .calc-field label { display: block; font-size: .82rem; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+    .calc-field input, .calc-field select { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 1rem; background: #fff; }
+    .calc-field input:focus, .calc-field select:focus { outline: none; border-color: var(--green); }
+    .calc-field .hint { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+    .calc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .calc-btn { width: 100%; padding: 14px; background: var(--green); color: #fff; border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .calc-btn:active { opacity: .85; }
+    /* Tuloskortti */
+    .result-card { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.06); display: none; }
+    .result-card.visible { display: block; }
+    .result-kcal { text-align: center; margin-bottom: 16px; }
+    .result-kcal .big { font-size: 2.8rem; font-weight: 800; color: var(--green); line-height: 1; }
+    .result-kcal .lbl { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+    .macro-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .macro-bar-row { display: flex; align-items: center; gap: 8px; }
+    .macro-bar-row .mlbl { font-size: .8rem; font-weight: 600; width: 86px; flex-shrink: 0; }
+    .macro-bar-row .mbar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .macro-bar-row .mbar-fill { height: 100%; border-radius: 4px; transition: width .5s ease; }
+    .macro-bar-row .mval { font-size: .8rem; font-weight: 700; width: 52px; text-align: right; flex-shrink: 0; }
+    .result-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat-box { background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; }
+    .stat-box .sv { font-size: 1.1rem; font-weight: 700; }
+    .stat-box .sl { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+    .result-timeline { background: var(--green-light); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; display: none; }
+    .result-timeline.visible { display: block; }
+    .result-timeline .tl-lbl { font-size: .72rem; text-transform: uppercase; color: var(--green-dark); font-weight: 700; letter-spacing: .5px; }
+    .result-timeline .tl-val { font-size: .95rem; font-weight: 700; color: var(--green-dark); margin-top: 2px; }
+    .formula-toggle { width: 100%; padding: 10px; background: none; border: 1px solid var(--border); border-radius: 10px; font-size: .82rem; font-weight: 600; color: var(--muted); cursor: pointer; text-align: left; margin-bottom: 0; }
+    .formula-box { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 8px; display: none; font-size: .8rem; color: var(--text); line-height: 1.6; }
+    .formula-box.visible { display: block; }
+    .formula-box code { display: block; background: #f3f4f6; border-radius: 6px; padding: 6px 8px; margin: 4px 0; font-family: monospace; font-size: .78rem; word-break: break-word; }
+    .warning-box { background: #fef9c3; border-left: 3px solid #eab308; border-radius: 8px; padding: 10px 12px; font-size: .82rem; margin-bottom: 10px; color: #713f12; }
+    /* Vanha manuaalinen tavoitekortti — pidetään pienempänä */
     .goals-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
     .goals-card h2 { font-size: .75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; letter-spacing: .5px; }
     .goal-field { margin-bottom: 12px; }
@@ -394,19 +431,184 @@
     <div id="weight-list"></div>
   </div>
 
-  <!-- ── GOALS ── -->
+  <!-- ── GOALS / TAVOITELASKURI ── -->
   <div id="tab-goals" style="display:none">
-    <div class="goals-card">
-      <h2>Päivittäiset tavoitteet</h2>
-      <div class="goal-field"><label>Kalorit (kcal)</label><input type="number" id="g-kcal" placeholder="2000"></div>
-      <div class="goal-field"><label>Proteiini (g)</label><input type="number" id="g-prot" placeholder="120"></div>
-      <div class="goal-field"><label>Hiilihydraatit (g)</label><input type="number" id="g-carb" placeholder="220"></div>
-      <div class="goal-field"><label>Rasva (g)</label><input type="number" id="g-fat" placeholder="65"></div>
-      <div class="goal-field"><label>Kuitu (g)</label><input type="number" id="g-fib" placeholder="30"></div>
-      <button class="save-btn" id="goals-save">Tallenna tavoitteet</button>
-      <a href="/api/export/meals.csv" download style="display:block;margin-top:10px;padding:13px;background:var(--blue-light);color:var(--blue);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;text-decoration:none;">⬇ Lataa historia CSV-tiedostona</a>
-      <label style="display:block;margin-top:8px;padding:13px;background:var(--green-light);color:var(--green-dark);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;cursor:pointer;">
-        ⬆ Tuo historia CSV-tiedostosta
+
+    <!-- Kortti 1: Kehosi -->
+    <div class="calc-card">
+      <h2>🧍 Kehosi</h2>
+      <div class="calc-field">
+        <label>Sukupuoli</label>
+        <select id="c-gender">
+          <option value="male">Mies</option>
+          <option value="female">Nainen</option>
+        </select>
+      </div>
+      <div class="calc-row">
+        <div class="calc-field">
+          <label>Ikä (v)</label>
+          <input type="number" id="c-age" placeholder="35" min="10" max="100">
+        </div>
+        <div class="calc-field">
+          <label>Paino (kg)</label>
+          <input type="number" id="c-weight" placeholder="75" step="0.1">
+        </div>
+      </div>
+      <div class="calc-field">
+        <label>Pituus (cm)</label>
+        <input type="number" id="c-height" placeholder="175">
+      </div>
+      <div class="calc-field">
+        <label>Tavoitepaino (kg) <span style="font-weight:400;color:var(--muted)">— valinnainen</span></label>
+        <input type="number" id="c-targetweight" placeholder="70" step="0.1">
+        <div class="hint">Jos syötät tavoitepainon, saat aikatauluarvion</div>
+      </div>
+    </div>
+
+    <!-- Kortti 2: Arki & treeni -->
+    <div class="calc-card">
+      <h2>🏃 Arki &amp; treeni</h2>
+      <div class="calc-field">
+        <label>Arkiliikunta / työn rasittavuus</label>
+        <select id="c-activity">
+          <option value="sedentary">Istumatyö / hyvin vähän liikuntaa</option>
+          <option value="light">Kevyt arki (kevyt kävelytyö)</option>
+          <option value="moderate" selected>Kohtalainen arki (seisomapalvelu, vanhemmuus)</option>
+          <option value="active">Aktiivinen arki (fyysinen työ)</option>
+          <option value="very_active">Erittäin aktiivinen arki (raskas fyysinen työ)</option>
+        </select>
+        <div class="hint">Ei treenejä — ne kysytään erikseen</div>
+      </div>
+      <div class="calc-row">
+        <div class="calc-field">
+          <label>Treenejä / viikko</label>
+          <select id="c-workouts">
+            <option value="0">0 (ei treeniä)</option>
+            <option value="2">1–2 kertaa</option>
+            <option value="4" selected>3–4 kertaa</option>
+            <option value="6">5–6 kertaa</option>
+            <option value="7">Päivittäin</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <label>Treenin kesto</label>
+          <select id="c-duration">
+            <option value="short">Alle 30 min</option>
+            <option value="medium" selected>30–60 min</option>
+            <option value="long">60–90 min</option>
+            <option value="very_long">Yli 90 min</option>
+          </select>
+        </div>
+      </div>
+      <div class="calc-field">
+        <label>Treenin päätyyppi</label>
+        <select id="c-wtype">
+          <option value="strength">Voimaharjoittelu</option>
+          <option value="cardio">Kestävyys (juoksu, pyöräily, uinti)</option>
+          <option value="combo" selected>Yhdistelmä</option>
+          <option value="sports">Pallopelit / lajit</option>
+          <option value="other">Muu</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Kortti 3: Tavoite -->
+    <div class="calc-card">
+      <h2>🎯 Tavoitteesi</h2>
+      <div class="calc-field">
+        <label>Päätavoite</label>
+        <select id="c-goaltype">
+          <option value="cut_slow">Laihdutus — rauhallinen (~0,25 kg/vko)</option>
+          <option value="cut_normal" selected>Laihdutus — normaali (~0,5 kg/vko)</option>
+          <option value="cut_fast">Laihdutus — nopea (~0,75 kg/vko)</option>
+          <option value="maintain">Painon ylläpito</option>
+          <option value="bulk_lean">Lihasmassan kasvatus — vähän (+150 kcal)</option>
+          <option value="bulk_normal">Lihasmassan kasvatus — perus (+300 kcal)</option>
+          <option value="bulk_fast">Lihasmassan kasvatus — nopea (+500 kcal)</option>
+        </select>
+      </div>
+      <button class="calc-btn" id="calc-submit">🔢 Laske tavoitteet</button>
+    </div>
+
+    <!-- Tuloskortti -->
+    <div class="result-card" id="result-card">
+      <h2>📊 Päivittäiset tavoitteet</h2>
+
+      <!-- Varoitukset -->
+      <div id="result-warnings"></div>
+
+      <!-- Kalorit iso -->
+      <div class="result-kcal">
+        <div class="big" id="res-kcal">—</div>
+        <div class="lbl">kcal / päivä</div>
+      </div>
+
+      <!-- Makropalkki -->
+      <div class="macro-bars">
+        <div class="macro-bar-row">
+          <span class="mlbl">Proteiini</span>
+          <div class="mbar"><div class="mbar-fill" id="bar-prot" style="background:#16a34a;width:0%"></div></div>
+          <span class="mval" id="val-prot">—</span>
+        </div>
+        <div class="macro-bar-row">
+          <span class="mlbl">Hiilihydr.</span>
+          <div class="mbar"><div class="mbar-fill" id="bar-carb" style="background:#2563eb;width:0%"></div></div>
+          <span class="mval" id="val-carb">—</span>
+        </div>
+        <div class="macro-bar-row">
+          <span class="mlbl">Rasva</span>
+          <div class="mbar"><div class="mbar-fill" id="bar-fat" style="background:#ea580c;width:0%"></div></div>
+          <span class="mval" id="val-fat">—</span>
+        </div>
+      </div>
+
+      <!-- Stats-ruudukko -->
+      <div class="result-stats">
+        <div class="stat-box">
+          <div class="sv" id="res-bmr">—</div>
+          <div class="sl">BMR kcal/pv</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv" id="res-tdee">—</div>
+          <div class="sl">TDEE kcal/pv</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv" id="res-prot-g">—</div>
+          <div class="sl">Proteiini g/pv</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv" id="res-fat-g">—</div>
+          <div class="sl">Rasva g/pv</div>
+        </div>
+      </div>
+
+      <!-- Aikataulu -->
+      <div class="result-timeline" id="res-timeline">
+        <div class="tl-lbl">Arvioitu aikataulu</div>
+        <div class="tl-val" id="res-timeline-val">—</div>
+      </div>
+
+      <!-- Miten laskettiin -->
+      <button class="formula-toggle" id="formula-btn" onclick="toggleFormula()">🔍 Miten tämä laskettiin?</button>
+      <div class="formula-box" id="formula-box">
+        <strong>Perusaineenvaihdunta (BMR) — Mifflin-St Jeor</strong>
+        <code id="f-bmr-formula">—</code>
+        <code id="f-bmr-calc">—</code>
+        <strong style="margin-top:8px;display:block">Kokonaispäiväkulutus (TDEE)</strong>
+        <code id="f-tdee-formula">—</code>
+        <code id="f-tdee-calc">—</code>
+        <div style="margin-top:8px;font-size:.75rem;color:var(--muted)">
+          Makrot: proteiini <span id="f-prot-rate">—</span> g/kg × paino, rasva min 0,8 g/kg tai 20 % kaloreista, hiilihydraatit loppuosa.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tietojen vienti -->
+    <div class="goals-card" style="margin-top:0">
+      <h2>Tiedot</h2>
+      <a href="/api/export/meals.csv" download style="display:block;padding:12px;background:var(--blue-light);color:var(--blue);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;text-decoration:none;margin-bottom:8px;">⬇ Lataa historia CSV</a>
+      <label style="display:block;padding:12px;background:var(--green-light);color:var(--green-dark);border-radius:var(--radius);text-align:center;font-size:.9rem;font-weight:700;cursor:pointer;">
+        ⬆ Tuo historia CSV
         <input type="file" accept=".csv" id="import-csv-input" style="display:none">
       </label>
     </div>
@@ -1087,306 +1289,53 @@ async function deleteWeight(id) {
   loadWeight();
 }
 
-// ── Goals ─────────────────────────────────────────────────────────────────────
+// ── Goals / Tavoitelaskuri ────────────────────────────────────────────────────
 async function loadGoals() {
+  // Lataa vanhat manuaaliset tavoitteet edistymispalkkeja varten
   const resp = await fetch('/api/goals');
   goals = await resp.json();
-  document.getElementById('g-kcal').value = goals.calories ?? '';
-  document.getElementById('g-prot').value = goals.protein_g ?? '';
-  document.getElementById('g-carb').value = goals.carbs_g ?? '';
-  document.getElementById('g-fat').value  = goals.fat_g ?? '';
-  document.getElementById('g-fib').value  = goals.fiber_g ?? '';
-}
-
-document.getElementById('import-csv-input').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!confirm(`Tuodaan tiedosto "${file.name}" tietokantaan. Olemassa olevat ateriat säilyvät — duplikaatteja ei tarkisteta. Jatketaanko?`)) {
-    e.target.value = ''; return;
-  }
-  const form = new FormData();
-  form.append('file', file);
+  // Lataa myös laskuriprofiili lomakkeeseen jos on olemassa
   try {
-    const resp = await fetch('/api/import/meals', { method: 'POST', body: form });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error);
-    toast(`✅ Tuotu ${data.imported} ateriaa${data.skipped ? ', ohitettu '+data.skipped : ''}`, 4000);
-    loadDay();
-  } catch(err) { toast('❌ ' + err.message, 5000); }
-  e.target.value = '';
-});
-
-document.getElementById('goals-save').onclick = async () => {
-  const body = {
-    calories:  parseFloat(document.getElementById('g-kcal').value) || null,
-    protein_g: parseFloat(document.getElementById('g-prot').value) || null,
-    carbs_g:   parseFloat(document.getElementById('g-carb').value) || null,
-    fat_g:     parseFloat(document.getElementById('g-fat').value)  || null,
-    fiber_g:   parseFloat(document.getElementById('g-fib').value)  || null,
-  };
-  const resp = await fetch('/api/goals', {
-    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-  });
-  if (resp.ok) { goals = await resp.json(); toast('✅ Tavoitteet tallennettu!'); renderProgressBars({}); }
-};
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-function showAuthTab(tab) {
-  document.getElementById('auth-login').style.display    = tab==='login'    ? '' : 'none';
-  document.getElementById('auth-register').style.display = tab==='register' ? '' : 'none';
-  document.getElementById('tab-login-btn').classList.toggle('active', tab==='login');
-  document.getElementById('tab-register-btn').classList.toggle('active', tab==='register');
+    const pr = await fetch('/api/goals/profile');
+    const profile = await pr.json();
+    if (profile && profile.gender) {
+      document.getElementById('c-gender').value   = profile.gender ?? 'male';
+      document.getElementById('c-age').value      = profile.age ?? '';
+      document.getElementById('c-weight').value   = profile.weight_kg ?? '';
+      document.getElementById('c-height').value   = profile.height_cm ?? '';
+      document.getElementById('c-targetweight').value = profile.target_weight_kg ?? '';
+      document.getElementById('c-activity').value = profile.activity_level ?? 'moderate';
+      document.getElementById('c-workouts').value = profile.weekly_workouts ?? 4;
+      document.getElementById('c-duration').value = profile.workout_duration ?? 'medium';
+      document.getElementById('c-wtype').value    = profile.workout_type ?? 'combo';
+      document.getElementById('c-goaltype').value = profile.goal_type ?? 'cut_normal';
+      // Näytä tulokset jos laskettu arvo tallennettuna
+      if (profile.calorie_target) {
+        showCalcResults({
+          calorie_target: profile.calorie_target,
+          bmr: { value: profile.bmr },
+          tdee: { value: profile.tdee },
+          macros: { protein_g: profile.protein_g, carbs_g: profile.carbs_g, fat_g: profile.fat_g,
+                    protein_pct: Math.round(profile.protein_g*4/profile.calorie_target*100),
+                    carbs_pct:   Math.round(profile.carbs_g*4/profile.calorie_target*100),
+                    fat_pct:     Math.round(profile.fat_g*9/profile.calorie_target*100) },
+          warnings: [], estimated_weeks: null, estimated_date: null,
+          bmr: { value: profile.bmr, formula: 'BMR = (10 × paino) + (6,25 × pituus) − (5 × ikä) ±vakio', calculation: '' },
+          tdee: { value: profile.tdee, formula: 'TDEE = BMR × PAL + treenilisä', calculation: '' },
+        });
+      }
+    }
+  } catch(e) { /* ei profiilia */ }
 }
 
-async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-  document.getElementById('login-btn').disabled = true;
-  try {
-    const resp = await fetch('/api/auth/login', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email, password: pass})
-    });
-    const data = await resp.json();
-    if (!resp.ok) { errEl.textContent = data.error; return; }
-    startApp(data.email);
-  } finally { document.getElementById('login-btn').disabled = false; }
-}
-
-async function doRegister() {
-  const email  = document.getElementById('reg-email').value.trim();
-  const pass   = document.getElementById('reg-password').value;
-  const invite = document.getElementById('reg-invite').value.trim();
-  const errEl  = document.getElementById('register-error');
-  errEl.textContent = '';
-  document.getElementById('register-btn').disabled = true;
-  try {
-    const resp = await fetch('/api/auth/register', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email, password: pass, invite_code: invite})
-    });
-    const data = await resp.json();
-    if (!resp.ok) { errEl.textContent = data.error; return; }
-    startApp(data.email);
-  } finally { document.getElementById('register-btn').disabled = false; }
-}
-
-function startApp(email) {
-  document.getElementById('auth-screen').classList.remove('open');
-  document.getElementById('logout-btn').style.display = '';
-  document.title = 'Ruokapäiväkirja';
-  // Run full init after auth (login or register)
-  loadGoals().then(() => { updateDateLabel(); loadDay(); });
-  checkAndShowFeedback();
-}
-
-document.getElementById('logout-btn').onclick = async () => {
-  if (!confirm('Kirjaudu ulos?')) return;
-  await fetch('/api/auth/logout', {method:'POST'});
-  document.getElementById('auth-screen').classList.add('open');
-  document.getElementById('logout-btn').style.display = 'none';
-};
-
-// Enter-näppäin kirjautumiseen
-document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
-document.getElementById('reg-invite').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
-
-// ── Feedback popup ────────────────────────────────────────────────────────────
-function closeFeedback() {
-  document.getElementById('feedback-overlay').classList.remove('open');
-}
-
-async function checkAndShowFeedback() {
-  const today = isoDate(new Date());
-  const shownOn = localStorage.getItem('feedbackShownOn');
-  if (shownOn === today) return; // already shown today
-
-  // Show overlay immediately with loading state
-  document.getElementById('feedback-overlay').classList.add('open');
-
-  try {
-    const resp = await fetch('/api/feedback/yesterday');
-    if (!resp.ok) { closeFeedback(); return; }
-    const data = await resp.json();
-
-    // Pick emoji based on content hint
-    const msg = data.message || '';
-    const emoji = !data.has_data ? '📝'
-      : msg.includes('hien') || msg.includes('mahtav') || msg.includes('erin') ? '🏆'
-      : msg.includes('liik') || msg.includes('ylitt') ? '😅'
-      : msg.includes('vähän') || msg.includes('alhainen') || msg.includes('ali') ? '🤔'
-      : '💪';
-
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const label = yesterday.toLocaleDateString('fi-FI', { weekday:'long', day:'numeric', month:'long' });
-
-    document.getElementById('feedback-emoji').textContent = emoji;
-    document.getElementById('feedback-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
-    document.getElementById('feedback-msg').textContent = data.message;
-  } catch(e) {
-    closeFeedback();
-    return;
-  }
-
-  localStorage.setItem('feedbackShownOn', today);
-}
-
-// ── Water ─────────────────────────────────────────────────────────────────────
-let lastWaterEntry = null;
-
-async function loadWater(day) {
-  const resp = await fetch(`/api/water?date=${day || isoDate(currentDate)}`);
-  if (!resp.ok) return;
-  const data = await resp.json();
-  const total = data.total_ml || 0;
-  const goal  = data.goal_ml  || 2000;
-  document.getElementById('water-total').textContent = total + ' ml';
-  document.getElementById('water-goal-label').textContent = 'tavoite ' + goal + ' ml';
-  const pct = Math.min(100, Math.round((total / goal) * 100));
-  document.getElementById('water-bar-fill').style.width = pct + '%';
-  const entries = data.entries || [];
-  lastWaterEntry = entries.length ? entries[entries.length - 1] : null;
-  document.getElementById('water-undo').style.display = lastWaterEntry ? '' : 'none';
-}
-
-async function addWater(ml) {
-  const resp = await fetch('/api/water', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ amount_ml: ml, logged_at: localIso() })
-  });
-  if (resp.ok) { toast(`💧 +${ml} ml lisätty`); loadWater(); }
-}
-
-async function undoWater() {
-  if (!lastWaterEntry) return;
-  await fetch(`/api/water/${lastWaterEntry.id}`, { method: 'DELETE' });
-  toast('↩ Poistettu');
-  loadWater();
-}
-
-// ── Favorites ─────────────────────────────────────────────────────────────────
-document.getElementById('open-favs').onclick = () => openFavs();
-document.getElementById('favs-overlay').onclick = e => { if (e.target === document.getElementById('favs-overlay')) closeFavs(); };
-
-function closeFavs() { document.getElementById('favs-overlay').classList.remove('open'); }
-
-async function openFavs() {
-  document.getElementById('favs-overlay').classList.add('open');
-  const resp = await fetch('/api/favorites');
-  const favs = await resp.json();
-  const list = document.getElementById('favs-list');
-  if (!favs.length) {
-    list.innerHTML = '<div class="fav-empty">Ei suosikkeja vielä.<br>Tallenna ateria suosikiksi ⭐-painikkeella.</div>';
-    return;
-  }
-  list.innerHTML = favs.map(f => {
-    const thumb = f.image_b64
-      ? `<img class="fav-thumb" src="data:image/jpeg;base64,${f.image_b64}" alt="">`
-      : `<div class="fav-no-img">🍽️</div>`;
-    const kcal = f.calories ? `${f.calories} kcal · ` : '';
-    const prot = f.protein_g ? `P ${f.protein_g}g` : '';
-    const uses = f.use_count ? ` · ${f.use_count}× käytetty` : '';
-    return `<div class="fav-item" onclick="useFavorite(${f.id})">
-      ${thumb}
-      <div class="fav-info">
-        <div class="fav-name">${f.name}</div>
-        <div class="fav-meta">${kcal}${prot}${uses}</div>
-      </div>
-      <button class="fav-del" onclick="event.stopPropagation();deleteFavorite(${f.id})" title="Poista suosikeista">✕</button>
-    </div>`;
-  }).join('');
-}
-
-async function useFavorite(id) {
-  const resp = await fetch(`/api/favorites/${id}/use`, {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ eaten_at: localIso() })
-  });
-  if (resp.ok) {
-    closeFavs();
-    toast('✅ Ateria lisätty!');
-    loadDay();
-  } else toast('❌ Virhe lisättäessä');
-}
-
-async function deleteFavorite(id) {
-  if (!confirm('Poistetaanko suosikeista?')) return;
-  await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
-  openFavs();
-}
-
-// ── Trends ────────────────────────────────────────────────────────────────────
-let trendsPeriod = 'week';
-let chartKcal   = null;
-let chartMacros = null;
-
-function setTrendsPeriod(p) {
-  trendsPeriod = p;
-  document.getElementById('trends-week').classList.toggle('active', p === 'week');
-  document.getElementById('trends-month').classList.toggle('active', p === 'month');
-  loadTrends();
-}
-
-function fmtDay(s) {
-  const d = new Date(s + 'T12:00:00');
-  return d.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' });
-}
-
-async function loadTrends() {
-  const resp = await fetch(`/api/trends?period=${trendsPeriod}`);
-  if (!resp.ok) return;
-  const data = await resp.json();
-
-  const labels = data.map(r => fmtDay(r.day));
-  const kcals  = data.map(r => r.calories   || 0);
-  const prots  = data.map(r => r.protein_g  || 0);
-  const carbs  = data.map(r => r.carbs_g    || 0);
-  const fats   = data.map(r => r.fat_g      || 0);
-
-  const commonOpts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-    scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true, ticks: { font: { size: 10 } } } }
-  };
-
-  if (chartKcal) chartKcal.destroy();
-  chartKcal = new Chart(document.getElementById('chart-kcal'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label: 'kcal', data: kcals, backgroundColor: '#fb923c', borderRadius: 4 }]
-    },
-    options: { ...commonOpts, plugins: { ...commonOpts.plugins, legend: { display: false } } }
-  });
-
-  if (chartMacros) chartMacros.destroy();
-  chartMacros = new Chart(document.getElementById('chart-macros'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Proteiini', data: prots, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.1)', tension: .3, fill: false, pointRadius: 3 },
-        { label: 'Hiilihydr.', data: carbs, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', tension: .3, fill: false, pointRadius: 3 },
-        { label: 'Rasva', data: fats,  borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,.1)', tension: .3, fill: false, pointRadius: 3 },
-      ]
-    },
-    options: commonOpts
-  });
-}
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-(async () => {
-  const resp = await fetch('/api/auth/me');
-  const data = await resp.json();
-  if (data.id) {
-    startApp(data.email);
-  } else {
-    document.getElementById('auth-screen').classList.add('open');
-  }
-})();
-</script>
-</body>
-</html>
+function showCalcResults(data) {
+  const card = document.getElementById('result-card');
+  card.classList.add('visible');
+  document.getElementById('res-kcal').textContent  = Math.round(data.calorie_target);
+  document.getElementById('res-bmr').textContent   = Math.round(data.bmr.value);
+  document.getElementById('res-tdee').textContent  = Math.round(data.tdee.value);
+  document.getElementById('res-prot-g').textContent = data.macros.protein_g + ' g';
+  document.getElementById('res-fat-g').textContent  = data.macros.fat_g + ' g';
+  // Makropalkki
+  document.getElementById('bar-prot').style.width = data.macros.protein_pct + '%';
+  document.getElementById('bar-carb').style.width = dat

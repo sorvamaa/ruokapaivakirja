@@ -11,6 +11,10 @@ from flask import Flask, request, jsonify, send_from_directory, g, Response, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 import anthropic
 import requests as http_requests
+from goals_calculator import (
+    calculate_goals, goal_result_to_dict,
+    get_activity_levels, get_goal_types,
+)
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
@@ -150,6 +154,56 @@ def init_db():
                 use_count   INTEGER NOT NULL DEFAULT 0,
                 last_used   TIMESTAMPTZ,
                 created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        # User goals — tavoitelaskurin profiili (yksi per käyttäjä, päivittyy)
+        _exec(db, """
+            CREATE TABLE IF NOT EXISTS user_goals (
+                user_id          INTEGER PRIMARY KEY,
+                gender           TEXT,
+                age              INTEGER,
+                height_cm        REAL,
+                weight_kg        REAL,
+                body_fat_pct     REAL,
+                activity_level   TEXT,
+                weekly_workouts  INTEGER,
+                workout_duration TEXT,
+                workout_type     TEXT,
+                goal_type        TEXT,
+                target_weight_kg REAL,
+                target_date      TEXT,
+                -- Lasketut tulokset (tallennettu laskentahetkellä)
+                bmr              REAL,
+                tdee             REAL,
+                calorie_target   REAL,
+                protein_g        REAL,
+                carbs_g          REAL,
+                fat_g            REAL,
+                updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        # Goal history — historia jokaisesta muutoksesta
+        _exec(db, """
+            CREATE TABLE IF NOT EXISTS goal_history (
+                id               SERIAL PRIMARY KEY,
+                user_id          INTEGER NOT NULL,
+                gender           TEXT,
+                age              INTEGER,
+                height_cm        REAL,
+                weight_kg        REAL,
+                activity_level   TEXT,
+                weekly_workouts  INTEGER,
+                workout_duration TEXT,
+                goal_type        TEXT,
+                bmr              REAL,
+                tdee             REAL,
+                calorie_target   REAL,
+                protein_g        REAL,
+                carbs_g          REAL,
+                fat_g            REAL,
+                saved_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
         """)
 
@@ -450,6 +504,153 @@ def goals_endpoint():
         db.commit()
     row = _fetchone(db, "SELECT * FROM goals WHERE user_id=%s", (uid,))
     return jsonify(dict(row) if row else {})
+
+# ---------------------------------------------------------------------------
+# Tavoitelaskuri API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/goals/options")
+def goals_options():
+    """Palauttaa aktiviteettitasot ja tavoitetyypit UI:n dropdowneja varten."""
+    return jsonify({
+        "activity_levels": get_activity_levels(),
+        "goal_types":      get_goal_types(),
+    })
+
+
+@app.route("/api/goals/profile", methods=["GET"])
+@auth_required
+def goals_profile_get():
+    """Palauttaa käyttäjän tallennetun profiilin (tai tyhjän jos ei ole)."""
+    uid = current_user_id()
+    db  = get_db()
+    row = _fetchone(db, "SELECT * FROM user_goals WHERE user_id=%s", (uid,))
+    return jsonify(dict(row) if row else {})
+
+
+@app.route("/api/goals/profile", methods=["POST"])
+@auth_required
+def goals_profile_post():
+    """
+    Tallentaa profiilin, ajaa laskurin, päivittää user_goals ja goal_history,
+    ja päivittää myös vanhan goals-taulun (jota yhteenveto-näkymä käyttää).
+    """
+    uid  = current_user_id()
+    data = request.get_json(force=True)
+
+    required = ["gender", "age", "weight_kg", "height_cm",
+                "activity_level", "weekly_workouts", "workout_duration",
+                "workout_type", "goal_type"]
+    missing = [f for f in required if data.get(f) is None]
+    if missing:
+        return jsonify({"error": f"Puuttuvat kentät: {', '.join(missing)}"}), 400
+
+    # Validoinnit
+    gender = data["gender"]
+    if gender not in ("male", "female"):
+        return jsonify({"error": "gender: male tai female"}), 400
+
+    try:
+        age    = int(data["age"])
+        weight = float(data["weight_kg"])
+        height = float(data["height_cm"])
+    except (ValueError, TypeError):
+        return jsonify({"error": "Virheellinen numero"}), 400
+
+    if not (10 <= age <= 100):
+        return jsonify({"error": "Ikä: 10–100"}), 400
+    if not (30 <= weight <= 300):
+        return jsonify({"error": "Paino: 30–300 kg"}), 400
+    if not (100 <= height <= 250):
+        return jsonify({"error": "Pituus: 100–250 cm"}), 400
+
+    # Laskenta
+    result = calculate_goals(
+        gender=gender,
+        age=age,
+        weight_kg=weight,
+        height_cm=height,
+        activity_level=data["activity_level"],
+        weekly_workouts=int(data["weekly_workouts"]),
+        workout_duration=data["workout_duration"],
+        workout_type=data["workout_type"],
+        goal_type=data["goal_type"],
+        target_weight_kg=data.get("target_weight_kg"),
+        target_date=data.get("target_date"),
+    )
+    rd = goal_result_to_dict(result)
+
+    db = get_db()
+
+    # Päivitä user_goals (upsert)
+    _exec(db, """
+        INSERT INTO user_goals
+            (user_id, gender, age, height_cm, weight_kg, body_fat_pct,
+             activity_level, weekly_workouts, workout_duration, workout_type,
+             goal_type, target_weight_kg, target_date,
+             bmr, tdee, calorie_target, protein_g, carbs_g, fat_g, updated_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            gender=EXCLUDED.gender, age=EXCLUDED.age,
+            height_cm=EXCLUDED.height_cm, weight_kg=EXCLUDED.weight_kg,
+            body_fat_pct=EXCLUDED.body_fat_pct,
+            activity_level=EXCLUDED.activity_level,
+            weekly_workouts=EXCLUDED.weekly_workouts,
+            workout_duration=EXCLUDED.workout_duration,
+            workout_type=EXCLUDED.workout_type,
+            goal_type=EXCLUDED.goal_type,
+            target_weight_kg=EXCLUDED.target_weight_kg,
+            target_date=EXCLUDED.target_date,
+            bmr=EXCLUDED.bmr, tdee=EXCLUDED.tdee,
+            calorie_target=EXCLUDED.calorie_target,
+            protein_g=EXCLUDED.protein_g, carbs_g=EXCLUDED.carbs_g,
+            fat_g=EXCLUDED.fat_g, updated_at=NOW()
+    """, (uid, gender, age, height, weight, data.get("body_fat_pct"),
+          data["activity_level"], int(data["weekly_workouts"]),
+          data["workout_duration"], data["workout_type"],
+          data["goal_type"], data.get("target_weight_kg"), data.get("target_date"),
+          rd["bmr"]["value"], rd["tdee"]["value"], rd["calorie_target"],
+          rd["macros"]["protein_g"], rd["macros"]["carbs_g"], rd["macros"]["fat_g"]))
+
+    # Lisää historiarivi
+    _exec(db, """
+        INSERT INTO goal_history
+            (user_id, gender, age, height_cm, weight_kg, activity_level,
+             weekly_workouts, workout_duration, goal_type,
+             bmr, tdee, calorie_target, protein_g, carbs_g, fat_g)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (uid, gender, age, height, weight, data["activity_level"],
+          int(data["weekly_workouts"]), data["workout_duration"], data["goal_type"],
+          rd["bmr"]["value"], rd["tdee"]["value"], rd["calorie_target"],
+          rd["macros"]["protein_g"], rd["macros"]["carbs_g"], rd["macros"]["fat_g"]))
+
+    # Päivitä vanha goals-taulu (yhteenvetonäkymä käyttää tätä)
+    _exec(db, """
+        INSERT INTO goals (user_id, calories, protein_g, carbs_g, fat_g, fiber_g, updated_at)
+        VALUES (%s, %s, %s, %s, %s, 30, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            calories=EXCLUDED.calories, protein_g=EXCLUDED.protein_g,
+            carbs_g=EXCLUDED.carbs_g, fat_g=EXCLUDED.fat_g, updated_at=NOW()
+    """, (uid, rd["calorie_target"], rd["macros"]["protein_g"],
+          rd["macros"]["carbs_g"], rd["macros"]["fat_g"]))
+
+    db.commit()
+    return jsonify(rd), 201
+
+
+@app.route("/api/goals/history")
+@auth_required
+def goals_history():
+    """Palauttaa tavoitehistorian uusimmasta vanhimpaan."""
+    uid  = current_user_id()
+    db   = get_db()
+    rows = _fetchall(db, """
+        SELECT id, goal_type, calorie_target, protein_g, carbs_g, fat_g,
+               weight_kg, saved_at
+        FROM goal_history WHERE user_id=%s ORDER BY saved_at DESC LIMIT 20
+    """, (uid,))
+    return jsonify([{**dict(r), "saved_at": str(r["saved_at"])} for r in rows])
+
 
 # ---------------------------------------------------------------------------
 # Weight API
