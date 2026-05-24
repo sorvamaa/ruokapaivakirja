@@ -1337,5 +1337,356 @@ function showCalcResults(data) {
   document.getElementById('res-prot-g').textContent = data.macros.protein_g + ' g';
   document.getElementById('res-fat-g').textContent  = data.macros.fat_g + ' g';
   // Makropalkki
-  document.getElementById('bar-prot').style.width = data.macros.protein_pct + '%';
-  document.getElementById('bar-carb').style.width = dat
+  document.getElementById('bar-carb').style.width = data.macros.carbs_pct + '%';
+  document.getElementById('bar-fat').style.width  = data.macros.fat_pct + '%';
+  document.getElementById('val-prot').textContent = data.macros.protein_g + ' g';
+  document.getElementById('val-carb').textContent = data.macros.carbs_g + ' g';
+  document.getElementById('val-fat').textContent  = data.macros.fat_g + ' g';
+  // Aikataulu
+  const tl = document.getElementById('res-timeline');
+  if (data.estimated_weeks && data.estimated_date) {
+    document.getElementById('res-timeline-val').textContent =
+      `~${data.estimated_weeks} viikkoa → ${data.estimated_date}`;
+    tl.classList.add('visible');
+  } else {
+    tl.classList.remove('visible');
+  }
+  // Varoitukset
+  const wbox = document.getElementById('result-warnings');
+  wbox.innerHTML = (data.warnings || []).map(w =>
+    `<div class="warning-box">⚠️ ${w}</div>`).join('');
+  // Kaavaselitys
+  if (data.bmr && data.bmr.formula) {
+    document.getElementById('f-bmr-formula').textContent = data.bmr.formula;
+    document.getElementById('f-bmr-calc').textContent    = data.bmr.calculation || '';
+  }
+  if (data.tdee && data.tdee.formula) {
+    document.getElementById('f-tdee-formula').textContent = data.tdee.formula;
+    document.getElementById('f-tdee-calc').textContent    = data.tdee.calculation || '';
+  }
+  // Päivitä edistymispalkki sivulle
+  goals = { calories: data.calorie_target, protein_g: data.macros.protein_g,
+            carbs_g: data.macros.carbs_g, fat_g: data.macros.fat_g };
+  renderProgressBars({});
+  // Vieritä tuloskorttiin
+  setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+}
+
+function toggleFormula() {
+  const box = document.getElementById('formula-box');
+  const btn = document.getElementById('formula-btn');
+  const open = box.classList.toggle('visible');
+  btn.textContent = open ? '🔼 Piilota laskukaava' : '🔍 Miten tämä laskettiin?';
+}
+
+document.getElementById('calc-submit').onclick = async () => {
+  const btn = document.getElementById('calc-submit');
+  btn.disabled = true;
+  btn.textContent = '⏳ Lasketaan...';
+  const body = {
+    gender:           document.getElementById('c-gender').value,
+    age:              parseInt(document.getElementById('c-age').value),
+    weight_kg:        parseFloat(document.getElementById('c-weight').value),
+    height_cm:        parseFloat(document.getElementById('c-height').value),
+    activity_level:   document.getElementById('c-activity').value,
+    weekly_workouts:  parseInt(document.getElementById('c-workouts').value),
+    workout_duration: document.getElementById('c-duration').value,
+    workout_type:     document.getElementById('c-wtype').value,
+    goal_type:        document.getElementById('c-goaltype').value,
+  };
+  const tw = parseFloat(document.getElementById('c-targetweight').value);
+  if (tw) body.target_weight_kg = tw;
+  try {
+    const resp = await fetch('/api/goals/profile', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Virhe');
+    showCalcResults(data);
+    toast('✅ Tavoitteet laskettu ja tallennettu!');
+  } catch(e) {
+    toast('❌ ' + e.message, 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔢 Laske tavoitteet';
+  }
+};
+
+document.getElementById('import-csv-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!confirm(`Tuodaan tiedosto "${file.name}" tietokantaan. Olemassa olevat ateriat säilyvät — duplikaatteja ei tarkisteta. Jatketaanko?`)) {
+    e.target.value = ''; return;
+  }
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch('/api/import/meals', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    toast(`✅ Tuotu ${data.imported} ateriaa${data.skipped ? ', ohitettu '+data.skipped : ''}`, 4000);
+    loadDay();
+  } catch(err) { toast('❌ ' + err.message, 5000); }
+  e.target.value = '';
+});
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function showAuthTab(tab) {
+  document.getElementById('auth-login').style.display    = tab==='login'    ? '' : 'none';
+  document.getElementById('auth-register').style.display = tab==='register' ? '' : 'none';
+  document.getElementById('tab-login-btn').classList.toggle('active', tab==='login');
+  document.getElementById('tab-register-btn').classList.toggle('active', tab==='register');
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  document.getElementById('login-btn').disabled = true;
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error; return; }
+    startApp(data.email);
+  } finally { document.getElementById('login-btn').disabled = false; }
+}
+
+async function doRegister() {
+  const email  = document.getElementById('reg-email').value.trim();
+  const pass   = document.getElementById('reg-password').value;
+  const invite = document.getElementById('reg-invite').value.trim();
+  const errEl  = document.getElementById('register-error');
+  errEl.textContent = '';
+  document.getElementById('register-btn').disabled = true;
+  try {
+    const resp = await fetch('/api/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass, invite_code: invite})
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error; return; }
+    startApp(data.email);
+  } finally { document.getElementById('register-btn').disabled = false; }
+}
+
+function startApp(email) {
+  document.getElementById('auth-screen').classList.remove('open');
+  document.getElementById('logout-btn').style.display = '';
+  document.title = 'Ruokapäiväkirja';
+  // Run full init after auth (login or register)
+  loadGoals().then(() => { updateDateLabel(); loadDay(); });
+  checkAndShowFeedback();
+}
+
+document.getElementById('logout-btn').onclick = async () => {
+  if (!confirm('Kirjaudu ulos?')) return;
+  await fetch('/api/auth/logout', {method:'POST'});
+  document.getElementById('auth-screen').classList.add('open');
+  document.getElementById('logout-btn').style.display = 'none';
+};
+
+// Enter-näppäin kirjautumiseen
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+document.getElementById('reg-invite').addEventListener('keydown', e => { if (e.key==='Enter') doRegister(); });
+
+// ── Feedback popup ────────────────────────────────────────────────────────────
+function closeFeedback() {
+  document.getElementById('feedback-overlay').classList.remove('open');
+}
+
+async function checkAndShowFeedback() {
+  const today = isoDate(new Date());
+  const shownOn = localStorage.getItem('feedbackShownOn');
+  if (shownOn === today) return; // already shown today
+
+  // Show overlay immediately with loading state
+  document.getElementById('feedback-overlay').classList.add('open');
+
+  try {
+    const resp = await fetch('/api/feedback/yesterday');
+    if (!resp.ok) { closeFeedback(); return; }
+    const data = await resp.json();
+
+    // Pick emoji based on content hint
+    const msg = data.message || '';
+    const emoji = !data.has_data ? '📝'
+      : msg.includes('hien') || msg.includes('mahtav') || msg.includes('erin') ? '🏆'
+      : msg.includes('liik') || msg.includes('ylitt') ? '😅'
+      : msg.includes('vähän') || msg.includes('alhainen') || msg.includes('ali') ? '🤔'
+      : '💪';
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const label = yesterday.toLocaleDateString('fi-FI', { weekday:'long', day:'numeric', month:'long' });
+
+    document.getElementById('feedback-emoji').textContent = emoji;
+    document.getElementById('feedback-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    document.getElementById('feedback-msg').textContent = data.message;
+  } catch(e) {
+    closeFeedback();
+    return;
+  }
+
+  localStorage.setItem('feedbackShownOn', today);
+}
+
+// ── Water ─────────────────────────────────────────────────────────────────────
+let lastWaterEntry = null;
+
+async function loadWater(day) {
+  const resp = await fetch(`/api/water?date=${day || isoDate(currentDate)}`);
+  if (!resp.ok) return;
+  const data = await resp.json();
+  const total = data.total_ml || 0;
+  const goal  = data.goal_ml  || 2000;
+  document.getElementById('water-total').textContent = total + ' ml';
+  document.getElementById('water-goal-label').textContent = 'tavoite ' + goal + ' ml';
+  const pct = Math.min(100, Math.round((total / goal) * 100));
+  document.getElementById('water-bar-fill').style.width = pct + '%';
+  const entries = data.entries || [];
+  lastWaterEntry = entries.length ? entries[entries.length - 1] : null;
+  document.getElementById('water-undo').style.display = lastWaterEntry ? '' : 'none';
+}
+
+async function addWater(ml) {
+  const resp = await fetch('/api/water', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ amount_ml: ml, logged_at: localIso() })
+  });
+  if (resp.ok) { toast(`💧 +${ml} ml lisätty`); loadWater(); }
+}
+
+async function undoWater() {
+  if (!lastWaterEntry) return;
+  await fetch(`/api/water/${lastWaterEntry.id}`, { method: 'DELETE' });
+  toast('↩ Poistettu');
+  loadWater();
+}
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+document.getElementById('open-favs').onclick = () => openFavs();
+document.getElementById('favs-overlay').onclick = e => { if (e.target === document.getElementById('favs-overlay')) closeFavs(); };
+
+function closeFavs() { document.getElementById('favs-overlay').classList.remove('open'); }
+
+async function openFavs() {
+  document.getElementById('favs-overlay').classList.add('open');
+  const resp = await fetch('/api/favorites');
+  const favs = await resp.json();
+  const list = document.getElementById('favs-list');
+  if (!favs.length) {
+    list.innerHTML = '<div class="fav-empty">Ei suosikkeja vielä.<br>Tallenna ateria suosiikiksi ⭐-painikkeella.</div>';
+    return;
+  }
+  list.innerHTML = favs.map(f => {
+    const thumb = f.image_b64
+      ? `<img class="fav-thumb" src="data:image/jpeg;base64,${f.image_b64}" alt="">`
+      : `<div class="fav-no-img">🍽️</div>`;
+    const kcal = f.calories ? `${f.calories} kcal · ` : '';
+    const prot = f.protein_g ? `P ${f.protein_g}g` : '';
+    const uses = f.use_count ? ` · ${f.use_count}× käytetty` : '';
+    return `<div class="fav-item" onclick="useFavorite(${f.id})">
+      ${thumb}
+      <div class="fav-info">
+        <div class="fav-name">${f.name}</div>
+        <div class="fav-meta">${kcal}${prot}${uses}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation();deleteFavorite(${f.id})" title="Poista suosikeista">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function useFavorite(id) {
+  const resp = await fetch(`/api/favorites/${id}/use`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ eaten_at: localIso() })
+  });
+  if (resp.ok) {
+    closeFavs();
+    toast('✅ Ateria lisätty!');
+    loadDay();
+  } else toast('❌ Virhe lisättäessä');
+}
+
+async function deleteFavorite(id) {
+  if (!confirm('Poistetaanko suosikeista?')) return;
+  await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
+  openFavs();
+}
+
+// ── Trends ────────────────────────────────────────────────────────────────────
+let trendsPeriod = 'week';
+let chartKcal   = null;
+let chartMacros = null;
+
+function setTrendsPeriod(p) {
+  trendsPeriod = p;
+  document.getElementById('trends-week').classList.toggle('active', p === 'week');
+  document.getElementById('trends-month').classList.toggle('active', p === 'month');
+  loadTrends();
+}
+
+function fmtDay(s) {
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('fi-FI', { day: 'numeric', month: 'numeric' });
+}
+
+async function loadTrends() {
+  const resp = await fetch(`/api/trends?period=${trendsPeriod}`);
+  if (!resp.ok) return;
+  const data = await resp.json();
+
+  const labels = data.map(r => fmtDay(r.day));
+  const kcals  = data.map(r => r.calories   || 0);
+  const prots  = data.map(r => r.protein_g  || 0);
+  const carbs  = data.map(r => r.carbs_g    || 0);
+  const fats   = data.map(r => r.fat_g      || 0);
+
+  const commonOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true, ticks: { font: { size: 10 } } } }
+  };
+
+  if (chartKcal) chartKcal.destroy();
+  chartKcal = new Chart(document.getElementById('chart-kcal'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'kcal', data: kcals, backgroundColor: '#fb923c', borderRadius: 4 }]
+    },
+    options: { ...commonOpts, plugins: { ...commonOpts.plugins, legend: { display: false } } }
+  });
+
+  if (chartMacros) chartMacros.destroy();
+  chartMacros = new Chart(document.getElementById('chart-macros'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Proteiini', data: prots, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.1)', tension: .3, fill: false, pointRadius: 3 },
+        { label: 'Hiilihydr.', data: carbs, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.1)', tension: .3, fill: false, pointRadius: 3 },
+        { label: 'Rasva', data: fats,  borderColor: '#ec4899', backgroundColor: 'rgba(236,72,153,.1)', tension: .3, fill: false, pointRadius: 3 },
+      ]
+    },
+    options: commonOpts
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const resp = await fetch('/api/auth/me');
+  const data = await resp.json();
+  if (data.id) {
+    startApp(data.email);
+  } else {
+    document.getElementById('auth-screen').classList.add('open');
+  }
+})();
+</script>
+</body>
+</html>
